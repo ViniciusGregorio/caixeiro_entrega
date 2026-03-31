@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>AI Lab Futurista</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<div class="sidebar">
+
+<h2>AI LAB</h2>
+
+<button onclick="showScreen('basico')">
+Algoritmo Básico
+</button>
+
+<button onclick="showScreen('genetico')">
+Algoritmo Genético
+</button>
+
+<button onclick="showScreen('sobre')">
+Sobre o Sistema
+</button>
+
+</div>
+
+
+<div class="main">
+
+
+<!-- ALGORITMOS BASICOS -->
+
+<div id="basico" class="screen active">
+
+<h1>Algoritmos de Busca Local</h1>
+
+<div class="panel">
+
+<label>Tipo de execução</label>
+
+<select id="tipoExecucao">
+<option value="random">Aleatório</option>
+<option value="fixed">Fixo</option>
+</select>
+
+
+<label>Tamanho do problema</label>
+<input id="tamProblema" type="number" value="10">
+
+
+<label>Solução inicial</label>
+<input id="solucaoInicial" type="text" placeholder="ex: 1,2,3">
+
+
+<button onclick="gerarProblema()">
+Gerar Problema
+</button>
+
+</div>
+
+
+<div class="panel">
+
+<label>Método</label>
+
+<select id="metodoBusca">
+
+<option value="hill">
+Subida de Encosta
+</option>
+
+<option value="hillRestart">
+Subida de Encosta com Tentativas
+</option>
+
+<option value="annealing">
+Têmpera Simulada
+</option>
+
+</select>
+
+<button onclick="executarBasico()">
+Executar
+</button>
+
+</div>
+
+
+<div class="panel">
+
+<h3>Área de saída</h3>
+
+<pre id="saidaBasico"></pre>
+
+</div>
+
+</div>
+
+
+
+<!-- ALGORITMO GENETICO -->
+
+<div id="genetico" class="screen">
+
+<h1>Algoritmo Genético</h1>
+
+<div class="panel">
+
+<label>Tamanho do problema</label>
+<input id="agTam" type="number" value="20">
+
+<button onclick="gerarProblemaAG()">
+Gerar Problema
+</button>
+
+</div>
+
+
+<div class="panel">
+
+<label>Tamanho população</label>
+<input id="pop" type="number" value="30">
+
+
+<label>Taxa mutação</label>
+<input id="mut" type="number" step="0.01" value="0.05">
+
+
+<label>Taxa cruzamento</label>
+<input id="cross" type="number" step="0.01" value="0.8">
+
+
+<label>Número gerações</label>
+<input id="gens" type="number" value="50">
+
+
+<button onclick="executarAG()">
+Executar AG
+</button>
+
+</div>
+
+
+<div class="panel">
+
+<canvas id="grafico"></canvas>
+
+</div>
+
+
+<div class="panel">
+
+<pre id="saidaAG"></pre>
+
+</div>
+
+</div>
+
+
+
+<!-- SOBRE -->
+
+<div id="sobre" class="screen">
+
+<h1>Sobre o Sistema</h1>
+
+<p>Sistema didático para estudo de Inteligência Artificial.</p>
+
+<ul>
+
+<li>Busca Local</li>
+<li>Subida de Encosta</li>
+<li>Têmpera Simulada</li>
+<li>Algoritmos Genéticos</li>
+
+</ul>
+
+</div>
+
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
