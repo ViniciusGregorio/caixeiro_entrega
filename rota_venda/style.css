@@ -54,6 +54,12 @@ background:#1e293b;
 
 }
 
+input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #020617; 
+    border-color: #0f172a;
+}
 
 .main{
 
