@@ -1,36 +1,35 @@
-// ==========================================
-// VARIÁVEIS GLOBAIS (Busca Local / PCV)
-// ==========================================
+
 let matrizProblema = [];
 let solucaoAtual = [];
 let custoAtual = 0;
 
-// Variável global do Algoritmo Genético
+
 let problemaAG = [];
+
 
 document.addEventListener("DOMContentLoaded", () => {
     let selectTipo = document.getElementById("tipoExecucao");
     let inputSolucao = document.getElementById("solucaoInicial");
 
-    // Função que checa o select e desabilita/habilita o input
+    
     function checarInput() {
         if (selectTipo.value === "random") {
             inputSolucao.disabled = true;
-            inputSolucao.value = ""; // Limpa o campo para evitar confusão
+            inputSolucao.value = ""; 
         } else {
             inputSolucao.disabled = false;
         }
     }
 
-    // Executa uma vez ao abrir a página (já que o padrão é Aleatório)
+ 
     checarInput();
-
-    // Escuta toda vez que o usuário trocar a opção no select
     selectTipo.addEventListener("change", checarInput);
+    
+
+    toggleParametros(); 
 });
-// ==========================================
-// NAVEGAÇÃO DO MENU
-// ==========================================
+
+
 function showScreen(id){
     document.querySelectorAll(".screen").forEach(s=>{
         s.classList.remove("active");
@@ -38,11 +37,15 @@ function showScreen(id){
     document.getElementById(id).classList.add("active");
 }
 
-// ==========================================
-// COMUNICAÇÃO COM O BACKEND PYTHON (Busca Local)
-// ==========================================
+
+function toggleParametros() {
+    let metodo = document.getElementById("metodoBusca").value;
+    document.getElementById("paramsSET").style.display = (metodo === "hillRestart") ? "block" : "none";
+    document.getElementById("paramsTE").style.display = (metodo === "annealing") ? "block" : "none";
+}
+
+
 async function gerarProblema(){
-    // Captura os valores do layout
     let n = parseInt(document.getElementById("tamProblema").value);
     let tipo = document.getElementById("tipoExecucao").value;
     let inicial = document.getElementById("solucaoInicial").value;
@@ -51,39 +54,65 @@ async function gerarProblema(){
         let response = await fetch('http://127.0.0.1:5000/gerar_problema_pcv', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                tamanho: n,
-                tipo: tipo,
-                inicial: inicial
-            })
+            body: JSON.stringify({ tamanho: n, tipo: tipo, inicial: inicial })
         });
         
         let data = await response.json();
+        
+       
+        if (data.erro) {
+            document.getElementById("saidaBasico").textContent = "❌ [ERRO DE VALIDAÇÃO]\n" + data.erro;
+            matrizProblema = []; 
+            return; 
+        }
         
         matrizProblema = data.matriz;
         solucaoAtual = data.solucao_inicial;
         custoAtual = data.custo_inicial;
         
         let matrizTexto = data.matriz.map(linha => linha.join("\t")).join("\n");
-        
-        document.getElementById("saidaBasico").textContent = 
-            "=== DADOS GERADOS NO SERVIDOR ===\n\n" +
-            "Matriz de Distâncias (" + n + "x" + n + "):\n" + matrizTexto +
-            "\n\nRota Inicial Fixada: [" + solucaoAtual.join(", ") + "]" +
-            "\nCusto da Rota Inicial: " + custoAtual + " km/tempo";
+        document.getElementById("saidaBasico").textContent = "=== MATRIZ DE ADJACÊNCIAS ===\n\n" + matrizTexto;
             
     } catch (error) {
         document.getElementById("saidaBasico").textContent = "Erro de conexão! O arquivo app.py está rodando?";
     }
 }
 
+
+function gerarSolucaoInicial() {
+    if (matrizProblema.length === 0) {
+        alert("Clique em 'Gerar Problema' primeiro!");
+        return;
+    }
+    document.getElementById("saidaBasico").textContent += 
+        "\n\n=== SOLUÇÃO INICIAL E AVALIAÇÃO ===" +
+        "\nRota Inicial: [" + solucaoAtual.join(", ") + "]" +
+        "\nCusto Inicial: " + custoAtual;
+}
+
+
 async function executarBasico(){
     if (matrizProblema.length === 0) {
-        alert("Gere o problema primeiro!");
-        return;
+        alert("Gere o problema primeiro!"); return;
     }
 
     let metodo = document.getElementById("metodoBusca").value;
+    
+   
+    let tmax = document.getElementById("tmax") ? parseInt(document.getElementById("tmax").value) : 5;
+    let ti = document.getElementById("ti") ? parseFloat(document.getElementById("ti").value) : 100;
+    let tf = document.getElementById("tf") ? parseFloat(document.getElementById("tf").value) : 0.1;
+    let fr = document.getElementById("fr") ? parseFloat(document.getElementById("fr").value) : 0.8;
+
+    let payload = {
+        metodo: metodo,
+        matriz: matrizProblema,
+        solucao_inicial: solucaoAtual,
+        tmax: tmax,
+        ti: ti,
+        tf: tf,
+        fr: fr
+    };
     
     document.getElementById("saidaBasico").textContent += "\n\nProcessando otimização no Python...";
     
@@ -91,11 +120,7 @@ async function executarBasico(){
         let response = await fetch('http://127.0.0.1:5000/executar_basico', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                metodo: metodo,
-                matriz: matrizProblema,
-                solucao_inicial: solucaoAtual
-            })
+            body: JSON.stringify(payload)
         });
         
         let data = await response.json();
@@ -105,20 +130,36 @@ async function executarBasico(){
             return;
         }
         
-        document.getElementById("saidaBasico").textContent += 
-            "\n\n=== RESULTADO DA OTIMIZAÇÃO ===" +
-            "\nMétodo Aplicado: " + data.nome_metodo +
-            "\nMelhor Rota Encontrada: [" + data.solucao_final.join(", ") + "]" +
-            "\nCusto da Melhor Rota: " + data.custo_final + " km/tempo";
+        let saida = "";
+        
+       
+        if (metodo === "comparativa") {
+            saida = "\n\n=== RESULTADO DA ANÁLISE COMPARATIVA ===\n\n" + data.resultado_comparativo;
+        } else {
+           
+            saida = "\n\n=== RESULTADO DA EXECUÇÃO ===\n";
+            saida += "Método: " + data.nome_metodo + "\n";
+            saida += "Parâmetros Usados: " + data.parametros + "\n";
+            
+            if (data.historico && data.historico.length > 0) {
+                saida += "\n--- Histórico de Soluções Aceitas ---\n";
+                data.historico.forEach((passo, index) => {
+                    saida += `Passo ${index + 1}: [${passo.rota.join(", ")}] | Custo: ${passo.custo} ${passo.obs ? '('+passo.obs+')' : ''}\n`;
+                });
+            }
+            
+            saida += "\n>>> MELHOR ROTA FINAL: [" + data.solucao_final.join(", ") + "]";
+            saida += "\n>>> CUSTO FINAL: " + data.custo_final;
+        }
+
+        document.getElementById("saidaBasico").textContent += saida;
             
     } catch (error) {
         document.getElementById("saidaBasico").textContent += "\n\nErro na execução. O backend está rodando?";
     }
 }
 
-// ==========================================
-// CÓDIGO ORIGINAL - ALGORITMO GENÉTICO (FRONTEND)
-// ==========================================
+
 function gerarProblemaAG(){
     let n=parseInt(document.getElementById("agTam").value);
     problemaAG=[];
@@ -180,13 +221,13 @@ function executarAG(){
     document.getElementById("saidaAG").textContent= "Melhor fitness final: "+melhores[melhores.length-1];
 }
 
-// Variável para guardar o gráfico e conseguir destruí-lo antes de criar outro
+
 let chartInstance = null; 
 
 function mostrarGrafico(dados){
     let ctx=document.getElementById("grafico");
     
-    // Destrói o gráfico antigo se você clicar em "Executar AG" várias vezes
+    
     if(chartInstance != null){
         chartInstance.destroy();
     }

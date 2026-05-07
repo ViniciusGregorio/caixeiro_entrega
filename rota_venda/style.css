@@ -125,16 +125,20 @@ cursor:pointer;
 }
 
 
-pre{
+pre {
+    background: black;
+    color: #22c55e;
+    padding: 15px;
+    height: 400px;
+    font-size: 16px;
+    overflow: auto;
+    white-space: pre-wrap; 
+}
 
-background:black;
 
-color:#22c55e;
-
-padding:15px;
-
-height:150px;
-
-overflow:auto;
-
+input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #020617; 
+    border-color: #0f172a;
 }

@@ -6,10 +6,9 @@ import math
 app = Flask(__name__)
 CORS(app)
 
-
 def avalia(sol, n, m):
     soma = 0
-    for i in range(n - 1):
+    for i in range(len(sol) - 1):
         origem = sol[i]
         destino = sol[i+1]
         soma += m[origem][destino]
@@ -47,31 +46,32 @@ def gera_vizinho_aleatorio(atual, n):
     p2 = random.randint(0, n - 1)
     while p1 == p2:
         p2 = random.randint(0, n - 1)
-    
     x = novo[p1]
     novo[p1] = novo[p2]
     novo[p2] = x
     return novo
 
+
 def metodo_subida_encosta(si, vi, n, m):
     atual = si.copy()
     va = vi
+    historico = []
     
     while True:
         novo, vn = sucessor_pcv(atual, va, n, m)
-        
         if vn < va:
             atual = novo.copy()
             va = vn
+            historico.append({"rota": atual.copy(), "custo": va})
         else:
-            return atual, va
+            return atual, va, historico
 
-def metodo_subida_tentativas(si, vi, n, m):
-    tentativas = 5
+def metodo_subida_tentativas(si, vi, n, m, tmax):
     melhor_global = si.copy()
     va_global = vi
+    historico = []
     
-    for t in range(tentativas):
+    for t in range(tmax):
         if t == 0:
             atual_start = si.copy()
         else:
@@ -79,32 +79,29 @@ def metodo_subida_tentativas(si, vi, n, m):
             random.shuffle(atual_start)
             
         va_start = avalia(atual_start, n, m)
+        sol_local, custo_local, _ = metodo_subida_encosta(atual_start, va_start, n, m)
         
-        solucao_local, custo_local = metodo_subida_encosta(atual_start, va_start, n, m)
-        
-
         if custo_local < va_global:
-            melhor_global = solucao_local.copy()
+            melhor_global = sol_local.copy()
             va_global = custo_local
+            historico.append({"rota": melhor_global.copy(), "custo": va_global, "obs": f"Tentativa {t+1}"})
             
-    return melhor_global, va_global
+    return melhor_global, va_global, historico
 
-def metodo_tempera_simulada(si, vi, n, m):
+def metodo_tempera_simulada(si, vi, n, m, ti, tf, fr):
     atual = si.copy()
     va = vi
-    
     melhor_global = atual.copy()
     va_global = va
+    historico = []
     
-    temperatura = 100.0
-    resfriamento = 0.95
+    temperatura = ti
     iteracoes_por_temperatura = 20
     
-    while temperatura > 0.1:
+    while temperatura > tf:
         for i in range(iteracoes_por_temperatura):
             novo = gera_vizinho_aleatorio(atual, n)
             vn = avalia(novo, n, m)
-            
             delta = vn - va
             
             if delta < 0:
@@ -113,18 +110,41 @@ def metodo_tempera_simulada(si, vi, n, m):
                 if va < va_global:
                     melhor_global = atual.copy()
                     va_global = va
+                    historico.append({"rota": melhor_global.copy(), "custo": va_global, "obs": f"Temp: {temperatura:.2f}"})
             else:
                 probabilidade = math.exp(-delta / temperatura)
                 if random.random() < probabilidade:
                     atual = novo.copy()
                     va = vn
-                    
-        temperatura = temperatura * resfriamento
+        temperatura = temperatura * fr
         
-    return melhor_global, va_global
+    return melhor_global, va_global, historico
 
+def executar_analise_comparativa(si, vi, n, m):
+    resultados = []
+    
+  
+    _, c_se, _ = metodo_subida_encosta(si, vi, n, m)
+    resultados.append(f"SE: Melhor Custo Encontrado = {c_se}")
+    
 
-# ROTAS DA API
+    tmax_vals = [n, max(1, int(n/2)), max(1, int(n/4))]
+    for t in tmax_vals:
+        _, c_set, _ = metodo_subida_tentativas(si, vi, n, m, t)
+        resultados.append(f"SET (TMAX={t}): Melhor Custo = {c_set}")
+        
+    
+    configs_te = [
+        (100, 0.1, 0.8), (200, 0.1, 0.8), (500, 0.1, 0.8),
+        (200, 0.1, 0.9), (500, 0.1, 0.9),
+        (200, 0.01, 0.9), (500, 0.01, 0.9)
+    ]
+    for ti, tf, fr in configs_te:
+        _, c_te, _ = metodo_tempera_simulada(si, vi, n, m, ti, tf, fr)
+        resultados.append(f"TE (TI={ti}, TF={tf}, FR={fr}): Melhor Custo = {c_te}")
+        
+    return "\n".join(resultados)
+
 
 @app.route('/gerar_problema_pcv', methods=['POST'])
 def gerar_problema_pcv():
@@ -133,7 +153,36 @@ def gerar_problema_pcv():
     tipo_execucao = dados.get('tipo', 'random')
     str_inicial = dados.get('inicial', '')
     
-
+    solucao_inicial = []
+    
+    if tipo_execucao == 'fixed' and str_inicial != '':
+        partes = str_inicial.split(',')
+        for p in partes:
+            if p.strip() != '': 
+                try:
+                    solucao_inicial.append(int(p.strip()))
+                except ValueError:
+                    return jsonify({"erro": "Entrada inválida. Digite apenas números separados por vírgula."})
+        
+      
+        if len(solucao_inicial) != n:
+            return jsonify({"erro": f"Você escolheu Tamanho {n}, mas digitou {len(solucao_inicial)} números. A quantidade deve ser exata."})
+            
+        
+        for val in solucao_inicial:
+            if val < 0 or val >= n:
+                return jsonify({"erro": f"Número inválido detectado: {val}.\nPara um problema de tamanho {n}, os números válidos são de 0 até {n-1}."})
+                
+       
+        if len(set(solucao_inicial)) != len(solucao_inicial):
+            return jsonify({"erro": "A solução inicial não pode conter números repetidos!"})
+            
+    else:
+        
+        solucao_inicial = list(range(n))
+        random.shuffle(solucao_inicial)
+    
+    
     m = [[0] * n for i in range(n)]
     for i in range(n):
         for j in range(n):
@@ -142,17 +191,6 @@ def gerar_problema_pcv():
             else:
                 m[i][j] = 0
                 
-    solucao_inicial = []
-    
-    if tipo_execucao == 'fixed' and str_inicial != '':
-        partes = str_inicial.split(',')
-        for p in partes:
-            solucao_inicial.append(int(p.strip()))
-    else:
-
-        solucao_inicial = list(range(n))
-        random.shuffle(solucao_inicial)
-    
     return jsonify({
         "matriz": m,
         "solucao_inicial": solucao_inicial,
@@ -164,25 +202,39 @@ def executar_basico():
     dados = request.json
     metodo = dados.get('metodo')
     matriz = dados.get('matriz')
-    solucao_inicial = dados.get('solucao_inicial')
-    n = len(solucao_inicial)
+    si = dados.get('solucao_inicial')
+    n = len(si)
+    vi = avalia(si, n, matriz)
     
-    custo_inicial = avalia(solucao_inicial, n, matriz)
+    tmax = dados.get('tmax', 5)
+    ti = dados.get('ti', 100)
+    tf = dados.get('tf', 0.1)
+    fr = dados.get('fr', 0.8)
+    
+    sf, cf, historico, parametros = [], 0, [], ""
+    resultado_comparativo = ""
     
     if metodo == 'hill':
-        sf, cf = metodo_subida_encosta(solucao_inicial, custo_inicial, n, matriz)
+        sf, cf, historico = metodo_subida_encosta(si, vi, n, matriz)
         nome_metodo = "Subida de Encosta"
+        parametros = "Padrão"
     elif metodo == 'hillRestart':
-        sf, cf = metodo_subida_tentativas(solucao_inicial, custo_inicial, n, matriz)
+        sf, cf, historico = metodo_subida_tentativas(si, vi, n, matriz, tmax)
         nome_metodo = "Subida de Encosta com Tentativas"
+        parametros = f"TMAX = {tmax}"
     elif metodo == 'annealing':
-        sf, cf = metodo_tempera_simulada(solucao_inicial, custo_inicial, n, matriz)
+        sf, cf, historico = metodo_tempera_simulada(si, vi, n, matriz, ti, tf, fr)
         nome_metodo = "Têmpera Simulada"
-    else:
-        return jsonify({"erro": "Método inválido."})
+        parametros = f"TI = {ti}, TF = {tf}, FR = {fr}"
+    elif metodo == 'comparativa':
+        resultado_comparativo = executar_analise_comparativa(si, vi, n, matriz)
+        nome_metodo = "Análise Comparativa (Tabela 1 do PDF)"
+        return jsonify({"metodo": metodo, "resultado_comparativo": resultado_comparativo})
         
     return jsonify({
         "nome_metodo": nome_metodo,
+        "parametros": parametros,
+        "historico": historico,
         "solucao_final": sf,
         "custo_final": cf
     })

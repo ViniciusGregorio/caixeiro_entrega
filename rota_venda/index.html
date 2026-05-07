@@ -1,192 +1,133 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
-<title>AI Lab Futurista</title>
-
-<link rel="stylesheet" href="style.css">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <meta charset="UTF-8">
+    <title>AI Lab Futurista</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
 <div class="sidebar">
-
-<h2>AI LAB</h2>
-
-<button onclick="showScreen('basico')">
-Algoritmo Básico
-</button>
-
-<button onclick="showScreen('genetico')">
-Algoritmo Genético
-</button>
-
-<button onclick="showScreen('sobre')">
-Sobre o Sistema
-</button>
-
+    <h2>AI LAB</h2>
+    <button onclick="showScreen('basico')">Algoritmo Básico</button>
+    
+    <button onclick="alert('Módulo em desenvolvimento'); showScreen('genetico')">Algoritmo Genético</button>
+    
+    <button onclick="showScreen('sobre')">Sobre o Sistema</button>
 </div>
-
 
 <div class="main">
 
-
-<!-- ALGORITMOS BASICOS -->
-
-<div id="basico" class="screen active">
-
-<h1>Algoritmos de Busca Local</h1>
-
-<div class="panel">
-
-<label>Tipo de execução</label>
-
-<select id="tipoExecucao">
-<option value="random">Aleatório</option>
-<option value="fixed">Fixo</option>
-</select>
-
-
-<label>Tamanho do problema</label>
-<input id="tamProblema" type="number" value="10">
-
-
-<label>Solução inicial</label>
-<input id="solucaoInicial" type="text" placeholder="ex: 1,2,3">
-
-
-<button onclick="gerarProblema()">
-Gerar Problema
-</button>
-
-</div>
-
-
-<div class="panel">
-
-<label>Método</label>
-
-<select id="metodoBusca">
-
-<option value="hill">
-Subida de Encosta
-</option>
-
-<option value="hillRestart">
-Subida de Encosta com Tentativas
-</option>
-
-<option value="annealing">
-Têmpera Simulada
-</option>
-
-</select>
-
-<button onclick="executarBasico()">
-Executar
-</button>
-
-</div>
-
-
-<div class="panel">
-
-<h3>Área de saída</h3>
-
-<pre id="saidaBasico"></pre>
-
-</div>
-
-</div>
-
-
-
-<!-- ALGORITMO GENETICO -->
-
-<div id="genetico" class="screen">
-
-<h1>Algoritmo Genético</h1>
-
-<div class="panel">
-
-<label>Tamanho do problema</label>
-<input id="agTam" type="number" value="20">
-
-<button onclick="gerarProblemaAG()">
-Gerar Problema
-</button>
-
-</div>
-
-
-<div class="panel">
-
-<label>Tamanho população</label>
-<input id="pop" type="number" value="30">
-
-
-<label>Taxa mutação</label>
-<input id="mut" type="number" step="0.01" value="0.05">
-
-
-<label>Taxa cruzamento</label>
-<input id="cross" type="number" step="0.01" value="0.8">
-
-
-<label>Número gerações</label>
-<input id="gens" type="number" value="50">
-
-
-<button onclick="executarAG()">
-Executar AG
-</button>
-
-</div>
-
-
-<div class="panel">
-
-<canvas id="grafico"></canvas>
-
-</div>
-
-
-<div class="panel">
-
-<pre id="saidaAG"></pre>
-
-</div>
-
-</div>
-
-
-
-<!-- SOBRE -->
-
-<div id="sobre" class="screen">
-
-<h1>Sobre o Sistema</h1>
-
-<p>Sistema didático para estudo de Inteligência Artificial.</p>
-
-<ul>
-
-<li>Busca Local</li>
-<li>Subida de Encosta</li>
-<li>Têmpera Simulada</li>
-<li>Algoritmos Genéticos</li>
-
-</ul>
-
-</div>
-
+    <div id="basico" class="screen active">
+        <h1>Algoritmos de Busca Local</h1>
+        
+        <div class="panel">
+            <label>Tipo de execução</label>
+            <select id="tipoExecucao">
+                <option value="random">Aleatório</option>
+                <option value="fixed">Fixo</option>
+            </select>
+
+            <label>Tamanho do problema</label>
+            <input id="tamProblema" type="number" value="5">
+
+            <label>Solução inicial</label>
+            <input id="solucaoInicial" type="text" placeholder="ex: 0,1,2,3,4">
+            
+            <br><br>
+            <button onclick="gerarProblema()">Gerar Problema</button>
+            <button onclick="gerarSolucaoInicial()">Solução Inicial</button>
+        </div>
+
+        <div class="panel">
+            <label>Método</label>
+            <select id="metodoBusca" onchange="toggleParametros()">
+                <option value="hill">Subida de Encosta</option>
+                <option value="hillRestart">Subida de Encosta com Tentativas</option>
+                <option value="annealing">Têmpera Simulada</option>
+                <option value="comparativa">Análise Comparativa</option>
+            </select>
+
+            <div id="paramsSET" style="display:none; margin-top: 10px;">
+                <label>TMAX:</label>
+                <input type="number" id="tmax" value="5" style="width: 80px;">
+            </div>
+
+            <div id="paramsTE" style="display:none; margin-top: 10px;">
+                <label>TI (Temp. Inicial):</label> <input type="number" id="ti" value="100" style="width: 70px;">
+                <label>TF (Temp. Final):</label> <input type="number" id="tf" value="0.1" step="0.1" style="width: 70px;">
+                <label>FR (Resfriamento):</label> <input type="number" id="fr" value="0.8" step="0.1" style="width: 70px;">
+            </div>
+
+            <button onclick="executarBasico()" style="margin-top: 15px;">Executar</button>
+        </div>
+
+        <div class="panel">
+            <h3>Área de saída</h3>
+            <pre id="saidaBasico"></pre>
+        </div>
+    </div>
+
+    <div id="genetico" class="screen">
+        <h1>Algoritmo Genético</h1>
+        <div class="panel">
+            <label>Tamanho do problema</label>
+            <input id="agTam" type="number" value="20">
+            <button onclick="gerarProblemaAG()">Gerar Problema</button>
+        </div>
+
+        <div class="panel">
+            <label>Tamanho população</label>
+            <input id="pop" type="number" value="30">
+            <label>Taxa mutação</label>
+            <input id="mut" type="number" step="0.01" value="0.05">
+            <label>Taxa cruzamento</label>
+            <input id="cross" type="number" step="0.01" value="0.8">
+            <label>Número gerações</label>
+            <input id="gens" type="number" value="50">
+            <button onclick="executarAG()">Executar AG</button>
+        </div>
+
+        <div class="panel">
+            <canvas id="grafico"></canvas>
+        </div>
+
+        <div class="panel">
+            <pre id="saidaAG"></pre>
+        </div>
+    </div>
+
+    <div id="sobre" class="screen">
+        <h1>Sobre o Sistema</h1>
+        
+        <p><strong>Descrição do Software:</strong></p>
+        <p>Sistema desenvolvido para a otimização de rotas focado em entregas de comida (Delivery) e vendedores ambulantes. Utilizando conceitos de Busca Local e o Problema do Caixeiro Viajante (PCV), o software calcula matematicamente a sequência ideal de paradas. O objetivo é minimizar a distância e o tempo gasto no trajeto, garantindo maior eficiência operacional na entrega dos pedidos a partir do restaurante.</p>
+        
+        <br>
+        <p><strong>Disciplina:</strong> Programação Linear</p>
+        <p><strong>Professor:</strong> Luis Fernando de Almeida</p>
+        
+        <br>
+        <p><strong>Discentes (Desenvolvedores):</strong></p>
+        <ul>
+            <li>Vinicius Gregorio</li>
+            <li>Robson Indalecio Barbosa Ribeiro</li>
+        </ul>
+
+        <br>
+        <p><strong>Algoritmos Estudados e Implementados:</strong></p>
+        <ul>
+            <li>Busca Local: Subida de Encosta (Hill Climbing)</li>
+            <li>Busca Local: Subida de Encosta com Tentativas</li>
+            <li>Busca Local: Têmpera Simulada (Simulated Annealing)</li>
+            <li>Algoritmos Genéticos (Módulo Futuro)</li>
+        </ul>
+    </div>
 
 </div>
 
 <script src="app.js"></script>
-
 </body>
 </html>
