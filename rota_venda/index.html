@@ -5,6 +5,8 @@
     <title>PathFinder</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 <body>
@@ -128,7 +130,7 @@
         </ul>
     </div>
 
-    <div id="appReal" class="screen">
+    
         <h1>Simulador de Delivery (Cruzeiro-SP)</h1>
         
         <div class="panel">
@@ -155,11 +157,31 @@
             <div id="paramsRealSET" style="display:none; margin-bottom: 10px;">
                 <label>TMAX:</label> <input type="number" id="tmaxReal" value="5" style="width: 60px;">
             </div>
+<div id="appReal" class="screen">
+        <h1>Simulador de Delivery (Mapa Real)</h1>
+        
+        <div class="panel">
+            <p>📍 <strong>Clique no mapa</strong> para adicionar locais. O <span style="color:#ef4444; font-weight:bold;">1º clique</span> será a base (Restaurante).</p>
+            
+            <div id="mapaDelivery" style="height: 400px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 2px solid #38bdf8; z-index: 1;"></div>
+            
+            <button onclick="limparMapa()" style="background: #ef4444; color: white; border: none; margin-bottom: 15px;">🗑️ Limpar Mapa</button>
+
+            <h3>Configuração do Algoritmo</h3>
+            <select id="metodoReal" onchange="toggleParametrosReal()" style="width: 100%; margin-bottom: 10px;">
+                <option value="hill">Subida de Encosta</option>
+                <option value="hillRestart">Subida de Encosta com Tentativas</option>
+                <option value="annealing">Têmpera Simulada</option>
+            </select>
+
+            <div id="paramsRealSET" style="display:none; margin-bottom: 10px;">
+                <label>TMAX:</label> <input type="number" id="tmaxReal" value="5" style="width: 60px;">
+            </div>
 
             <div id="paramsRealTE" style="display:none; margin-bottom: 10px;">
                 <label>TI:</label> <input type="number" id="tiReal" value="100" style="width: 60px;">
-                <label>TF:</label> <input type="number" id="tfReal" value="0.1" style="width: 60px;">
-                <label>FR:</label> <input type="number" id="frReal" value="0.9" style="width: 60px;">
+                <label>TF:</label> <input type="number" id="tfReal" value="0.1" step="0.01" style="width: 60px;">
+                <label>FR:</label> <input type="number" id="frReal" value="0.9" step="0.1" style="width: 60px;">
             </div>
 
             <div style="display: flex; gap: 10px; background: #0f172a; padding: 10px; border-radius: 5px;">
@@ -167,7 +189,7 @@
                 <label>Consumo km/L <input type="number" id="consumoMoto" value="35" style="width: 50px;"></label>
             </div>
 
-            <button onclick="calcularDelivery()" style="margin-top: 15px; width: 100%;">Calcular Rota Otimizada</button>
+            <button onclick="calcularDeliveryMapa()" style="margin-top: 15px; width: 100%;">Calcular Rota Otimizada</button>
         </div>
 
         <div class="panel">

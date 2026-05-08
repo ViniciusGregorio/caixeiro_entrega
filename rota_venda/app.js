@@ -35,6 +35,10 @@ function showScreen(id){
         s.classList.remove("active");
     });
     document.getElementById(id).classList.add("active");
+    
+    if(id === 'appReal') {
+        setTimeout(() => initMapa(), 100); 
+    }
 }
 
 
@@ -247,10 +251,13 @@ function mostrarGrafico(dados){
     });
 }
 
-
 // ==========================================
-// MODO DELIVERY REAL (Cruzeiro-SP)
+// MODO DELIVERY MAPA REAL (Leaflet + OSRM)
 // ==========================================
+let mapaDelivery = null;
+let coordenadas = [];
+let marcadores = [];
+let linhaRota = null;
 
 function toggleParametrosReal() {
     let metodo = document.getElementById("metodoReal").value;
@@ -258,17 +265,57 @@ function toggleParametrosReal() {
     document.getElementById("paramsRealTE").style.display = (metodo === "annealing") ? "block" : "none";
 }
 
-async function calcularDelivery() {
-    let checkboxes = document.querySelectorAll('#listaBairros input[type="checkbox"]:checked');
-    let destinos = Array.from(checkboxes).map(cb => parseInt(cb.value));
+function initMapa() {
+    if (mapaDelivery !== null) {
+        mapaDelivery.invalidateSize();
+        return;
+    }
+    
+    // Inicia o mapa focado em Cruzeiro-SP (Latitude, Longitude)
+    mapaDelivery = L.map('mapaDelivery').setView([-22.5761, -44.9631], 14);
+    
+    // Carrega os blocos de ruas gratuitos do OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(mapaDelivery);
 
-    if (destinos.length === 0) {
-        alert("Selecione ao menos um bairro!");
+    // Evento de clique: Adiciona pinos no mapa
+    mapaDelivery.on('click', function(e) {
+        let lat = e.latlng.lat;
+        let lng = e.latlng.lng;
+        coordenadas.push({lat: lat, lng: lng});
+        
+        let id_ponto = coordenadas.length - 1;
+        
+        // Pinta a bolinha de vermelho se for o restaurante, azul se for cliente
+        let cor = id_ponto === 0 ? '#ef4444' : '#3b82f6';
+        let marcador = L.circleMarker([lat, lng], {
+            color: 'black', fillColor: cor, fillOpacity: 1, radius: 8
+        }).addTo(mapaDelivery);
+        
+        let textoPopup = id_ponto === 0 ? "<b>🏠 Restaurante (Origem)</b>" : `📦 Cliente ${id_ponto}`;
+        marcador.bindPopup(textoPopup).openPopup();
+        
+        marcadores.push(marcador);
+    });
+}
+
+function limparMapa() {
+    coordenadas = [];
+    marcadores.forEach(m => mapaDelivery.removeLayer(m));
+    marcadores = [];
+    if (linhaRota) mapaDelivery.removeLayer(linhaRota);
+    document.getElementById("saidaDelivery").textContent = "Mapa limpo! Pode adicionar novos pontos.";
+}
+
+async function calcularDeliveryMapa() {
+    if (coordenadas.length < 2) {
+        alert("Clique no mapa para adicionar ao menos 1 Restaurante e 1 Cliente!");
         return;
     }
 
     let payload = {
-        destinos: destinos,
+        coordenadas: coordenadas,
         metodo: document.getElementById("metodoReal").value,
         tmax: parseInt(document.getElementById("tmaxReal").value),
         ti: parseFloat(document.getElementById("tiReal").value),
@@ -277,16 +324,15 @@ async function calcularDelivery() {
     };
 
     let saidaDelivery = document.getElementById("saidaDelivery");
-    
-    // Agora sim, garantidamente usando o += para adicionar e não apagar!
-    saidaDelivery.textContent += "\n\n⏳ Processando nova rota...";
+    saidaDelivery.textContent += "\n\n🌐 Calculando distâncias reais das ruas no OSRM e otimizando...";
 
     try {
-        let response = await fetch('http://127.0.0.1:5000/calcular_delivery_real', {
+        let response = await fetch('http://127.0.0.1:5000/calcular_delivery_mapa', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
+        
         let data = await response.json();
 
         if (data.erro) {
@@ -294,16 +340,21 @@ async function calcularDelivery() {
             return;
         }
 
+        
+        if (linhaRota) mapaDelivery.removeLayer(linhaRota);
+        let pontosDaRota = data.ordem_indices.map(idx => [coordenadas[idx].lat, coordenadas[idx].lng]);
+        linhaRota = L.polyline(pontosDaRota, {color: '#ef4444', weight: 4, dashArray: '10, 10'}).addTo(mapaDelivery);
+
+        
         let preco = parseFloat(document.getElementById("precoGasolina").value);
         let consumo = parseFloat(document.getElementById("consumoMoto").value);
         let custo = (data.distancia_km / consumo) * preco;
 
-        // Monta o bloquinho de resultado
+        let txtRota = data.ordem_indices.map(idx => idx === 0 ? "Restaurante" : `Cliente ${idx}`).join(" ➔ ");
+
         let res = "\n==================================";
         res += "\nMÉTODO: " + (data.metodo_usado.toUpperCase());
-        res += "\n🚩 PARTIDA: " + data.rota_bairros[0];
-        res += "\n📦 ENTREGAS: " + data.rota_bairros.slice(1, -1).join(" ➔ ");
-        res += "\n🏁 RETORNO: " + data.rota_bairros[data.rota_bairros.length - 1];
+        res += "\n📍 ROTA OTIMIZADA:\n" + txtRota;
         res += "\n----------------------------------";
         res += "\n🛣️ TOTAL: " + data.distancia_km + " km   |   ⛽ CUSTO: R$ " + custo.toFixed(2);
         res += "\n==================================";
@@ -312,6 +363,6 @@ async function calcularDelivery() {
         saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
 
     } catch (e) {
-        saidaDelivery.textContent += "\nErro na conexão com o Python.";
+        saidaDelivery.textContent += "\nErro na conexão com a API ou Python.";
     }
 }

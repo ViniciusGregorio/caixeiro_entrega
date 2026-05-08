@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import random
 import math
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -240,60 +241,49 @@ def executar_basico():
     })
 
 
-# ROTA: MODO DELIVERY REAL (Cruzeiro-SP)
-
-@app.route('/calcular_delivery_real', methods=['POST'])
-def calcular_delivery_real():
+# ==========================================
+# ROTA: MODO DELIVERY COM MAPA REAL (OSRM)
+# ==========================================
+@app.route('/calcular_delivery_mapa', methods=['POST'])
+def calcular_delivery_mapa():
     dados = request.json
-    destinos_selecionados = dados.get('destinos', [])
+    coords = dados.get('coordenadas', [])
     metodo = dados.get('metodo', 'hill')
     
- 
     tmax = dados.get('tmax', 5)
     ti = dados.get('ti', 100)
     tf = dados.get('tf', 0.1)
     fr = dados.get('fr', 0.8)
     
-    bairros = [
-        "Restaurante (Origem)", "FATEC (Vila Juvenal)", "Vila Paulista", 
-        "Itagaçaba", "Jardim América", "Retiro da Mantiqueira", 
-        "Vila Suíça", "Nova Cruzeiro", "Vila Canevari", "Jardim Paraíso"
-    ]
-    
+    n_real = len(coords)
+    if n_real < 2:
+        return jsonify({"erro": "Adicione pelo menos o Restaurante e um Cliente."})
 
-    matriz_cruzeiro = [
-        [0.0, 2.5, 1.5, 3.0, 2.0, 4.5, 1.0, 3.5, 2.8, 4.0], # 0 Restaurante
-        [2.5, 0.0, 3.0, 5.0, 4.0, 6.5, 3.2, 5.5, 1.5, 6.0], # 1 FATEC
-        [1.5, 3.0, 0.0, 4.0, 3.5, 5.5, 1.8, 4.5, 3.5, 5.0], # 2 Vila Paulista
-        [3.0, 5.0, 4.0, 0.0, 2.5, 2.0, 3.8, 1.5, 6.0, 1.8], # 3 Itagaçaba
-        [2.0, 4.0, 3.5, 2.5, 0.0, 3.5, 2.5, 2.0, 5.0, 3.0], # 4 Jd América
-        [4.5, 6.5, 5.5, 2.0, 3.5, 0.0, 5.0, 3.0, 7.5, 2.5], # 5 Retiro
-        [1.0, 3.2, 1.8, 3.8, 2.5, 5.0, 0.0, 4.0, 3.0, 4.5], # 6 Vila Suíça
-        [3.5, 5.5, 4.5, 1.5, 2.0, 3.0, 4.0, 0.0, 6.5, 1.0], # 7 Nova Cruzeiro
-        [2.8, 1.5, 3.5, 6.0, 5.0, 7.5, 3.0, 6.5, 0.0, 7.0], # 8 Vila Canevari
-        [4.0, 6.0, 5.0, 1.8, 3.0, 2.5, 4.5, 1.0, 7.0, 0.0]  # 9 Jd Paraíso
-    ]
+    # Monta a URL para a API do OSRM (formato: lon,lat;lon,lat...)
+    str_coords = ";".join([f"{c['lng']},{c['lat']}" for c in coords])
+    url_osrm = f"http://router.project-osrm.org/table/v1/driving/{str_coords}?annotations=distance"
     
-    pontos_rota = [0] + destinos_selecionados
-    n_real = len(pontos_rota)
-    
-    if n_real <= 1:
-        return jsonify({"erro": "Selecione pelo menos um bairro para entrega."})
-    
-    m_recortada = [[0] * n_real for _ in range(n_real)]
-    for i in range(n_real):
-        for j in range(n_real):
-            m_recortada[i][j] = matriz_cruzeiro[pontos_rota[i]][pontos_rota[j]]
+    try:
+        resp = requests.get(url_osrm)
+        osrm_data = resp.json()
+        
+        if osrm_data.get('code') != 'Ok':
+            return jsonify({"erro": "Erro ao consultar as ruas no OSRM."})
             
+        # O OSRM devolve uma matriz em metros. Vamos transformar em km.
+        matriz_metros = osrm_data['distances']
+        m_recortada = [[val / 1000.0 for val in linha] for linha in matriz_metros]
+        
+    except Exception as e:
+        return jsonify({"erro": f"Erro de conexão com o OSRM: {str(e)}"})
 
     def avalia_tsp(sol, m):
         soma = 0
         for i in range(len(sol) - 1):
             soma += m[sol[i]][sol[i+1]]
-        soma += m[sol[-1]][sol[0]] 
+        soma += m[sol[-1]][sol[0]]
         return soma
 
- 
     si = list(range(n_real))
     vi = avalia_tsp(si, m_recortada)
     
@@ -309,15 +299,13 @@ def calcular_delivery_real():
     
     idx_zero = sf.index(0)
     sf_rotacionado = sf[idx_zero:] + sf[:idx_zero]
- 
-    rota_nomes = [bairros[pontos_rota[idx]] for idx in sf_rotacionado]
-    
-    rota_nomes.append(bairros[pontos_rota[0]])
+    sf_rotacionado.append(0) # Volta para o restaurante
     
     return jsonify({
-        "rota_bairros": rota_nomes,
+        "ordem_indices": sf_rotacionado,
         "distancia_km": round(cf, 2),
         "metodo_usado": metodo
     })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
