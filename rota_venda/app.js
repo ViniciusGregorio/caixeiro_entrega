@@ -280,7 +280,7 @@ async function sugerirEnderecos() {
     clearTimeout(timeoutBusca);
     
     timeoutBusca = setTimeout(async () => {
-        let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui
+        let termoLimpo = limparTermoBusca(query); 
         let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
         
         try {
@@ -383,31 +383,24 @@ function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
     marcadores.push(marcador);
 }
 
-// NOVIDADE: Função global para excluir o ponto e redesenhar o mapa
 window.removerPonto = function(index) {
-    // 1. Remove do array de coordenadas
     coordenadas.splice(index, 1);
     
-    // 2. Limpa todos os desenhos (marcadores e linhas) do mapa
     marcadores.forEach(m => mapaDelivery.removeLayer(m));
     marcadores = [];
     if (linhaRota) mapaDelivery.removeLayer(linhaRota);
     
-    // 3. Faz um backup e zera as coordenadas
     let backupCoords = [...coordenadas];
     coordenadas = [];
     
-    // 4. Re-adiciona os pontos um por um (isso atualiza as tags "Cliente 1, Cliente 2" na ordem correta)
     backupCoords.forEach(ponto => {
         adicionarPontoNoMapa(ponto.lat, ponto.lng, ponto.ruaBase);
     });
     
-    // 5. Avisa o usuário na tela preta
     let saidaDelivery = document.getElementById("saidaDelivery");
     saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido! Se uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
     saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
     
-    // Fecha o popup que estava aberto
     mapaDelivery.closePopup();
 };
 
@@ -419,7 +412,6 @@ function limparMapa() {
     document.getElementById("saidaDelivery").textContent = "Mapa limpo!.";
 }
 
-// Fecha as sugestões se clicar fora
 document.addEventListener('click', function(event) {
     let input = document.getElementById('buscaEndereco');
     let lista = document.getElementById('listaSugestoes');
