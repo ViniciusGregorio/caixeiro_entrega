@@ -248,60 +248,9 @@ function mostrarGrafico(dados){
 }
 
 
+// ==========================================
 // MODO DELIVERY REAL (Cruzeiro-SP)
-
-async function calcularDelivery() {
-    let checkboxes = document.querySelectorAll('#listaBairros input[type="checkbox"]:checked');
-    let destinosSelecionados = [];
-    
-    checkboxes.forEach(box => {
-        destinosSelecionados.push(parseInt(box.value));
-    });
-
-    if (destinosSelecionados.length === 0) {
-        alert("Selecione pelo menos um destino para o motoboy!");
-        return;
-    }
-
-    document.getElementById("saidaDelivery").textContent = "Calculando melhor rota nas ruas de Cruzeiro...";
-
-    try {
-        let response = await fetch('http://127.0.0.1:5000/calcular_delivery_real', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ destinos: destinosSelecionados })
-        });
-        
-        let data = await response.json();
-        
-        if(data.erro) {
-            document.getElementById("saidaDelivery").textContent = "[ERRO] " + data.erro;
-            return;
-        }
-        
-        
-        let precoGasolina = parseFloat(document.getElementById("precoGasolina").value);
-        let consumo = parseFloat(document.getElementById("consumoMoto").value);
-        
-       
-        let litrosGastos = data.distancia_km / consumo;
-        let custoDinheiro = litrosGastos * precoGasolina;
-
-      
-        let saida = ">>> SEQUÊNCIA DE ENTREGAS <<<\n";
-        saida += data.rota_bairros.join(" ➔ ");
-        
-        saida += "\n\n--------------------------------------\n";
-        saida += "🛣️ Distância Total Percorrida: " + data.distancia_km + " km\n";
-        saida += "⛽ Custo estimado em Combustível: R$ " + custoDinheiro.toFixed(2);
-        
-        document.getElementById("saidaDelivery").textContent = saida;
-
-    } catch (error) {
-        document.getElementById("saidaDelivery").textContent = "Erro ao conectar com a API Python.";
-    }
-
-}
+// ==========================================
 
 function toggleParametrosReal() {
     let metodo = document.getElementById("metodoReal").value;
@@ -327,7 +276,10 @@ async function calcularDelivery() {
         fr: parseFloat(document.getElementById("frReal").value)
     };
 
-    document.getElementById("saidaDelivery").textContent = "Otimizando percurso...";
+    let saidaDelivery = document.getElementById("saidaDelivery");
+    
+    // Agora sim, garantidamente usando o += para adicionar e não apagar!
+    saidaDelivery.textContent += "\n\n⏳ Processando nova rota...";
 
     try {
         let response = await fetch('http://127.0.0.1:5000/calcular_delivery_real', {
@@ -337,19 +289,29 @@ async function calcularDelivery() {
         });
         let data = await response.json();
 
+        if (data.erro) {
+            saidaDelivery.textContent += "\n[ERRO] " + data.erro;
+            return;
+        }
+
         let preco = parseFloat(document.getElementById("precoGasolina").value);
         let consumo = parseFloat(document.getElementById("consumoMoto").value);
         let custo = (data.distancia_km / consumo) * preco;
 
-        let res = "🚩 PARTIDA: " + data.rota_bairros[0] + "\n\n";
-        res += "📦 ENTREGAS:\n" + data.rota_bairros.slice(1, -1).join(" ➔ ") + "\n\n";
-        res += "🏁 RETORNO: " + data.rota_bairros.slice(-1) + "\n";
-        res += "----------------------------------\n";
-        res += "🛣️ TOTAL: " + data.distancia_km + " km\n";
-        res += "⛽ COMBUSTÍVEL: R$ " + custo.toFixed(2);
+        // Monta o bloquinho de resultado
+        let res = "\n==================================";
+        res += "\nMÉTODO: " + (data.metodo_usado.toUpperCase());
+        res += "\n🚩 PARTIDA: " + data.rota_bairros[0];
+        res += "\n📦 ENTREGAS: " + data.rota_bairros.slice(1, -1).join(" ➔ ");
+        res += "\n🏁 RETORNO: " + data.rota_bairros[data.rota_bairros.length - 1];
+        res += "\n----------------------------------";
+        res += "\n🛣️ TOTAL: " + data.distancia_km + " km   |   ⛽ CUSTO: R$ " + custo.toFixed(2);
+        res += "\n==================================";
 
-        document.getElementById("saidaDelivery").textContent = res;
+        saidaDelivery.textContent += res;
+        saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
+
     } catch (e) {
-        document.getElementById("saidaDelivery").textContent = "Erro na conexão.";
+        saidaDelivery.textContent += "\nErro na conexão com o Python.";
     }
 }

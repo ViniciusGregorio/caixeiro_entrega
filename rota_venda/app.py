@@ -239,7 +239,8 @@ def executar_basico():
         "custo_final": cf
     })
 
-# MODO DELIVERY REAL (Cruzeiro-SP)
+
+# ROTA: MODO DELIVERY REAL (Cruzeiro-SP)
 
 @app.route('/calcular_delivery_real', methods=['POST'])
 def calcular_delivery_real():
@@ -247,7 +248,7 @@ def calcular_delivery_real():
     destinos_selecionados = dados.get('destinos', [])
     metodo = dados.get('metodo', 'hill')
     
-   
+ 
     tmax = dados.get('tmax', 5)
     ti = dados.get('ti', 100)
     tf = dados.get('tf', 0.1)
@@ -259,7 +260,7 @@ def calcular_delivery_real():
         "Vila Suíça", "Nova Cruzeiro", "Vila Canevari", "Jardim Paraíso"
     ]
     
-    
+
     matriz_cruzeiro = [
         [0.0, 2.5, 1.5, 3.0, 2.0, 4.5, 1.0, 3.5, 2.8, 4.0], # 0 Restaurante
         [2.5, 0.0, 3.0, 5.0, 4.0, 6.5, 3.2, 5.5, 1.5, 6.0], # 1 FATEC
@@ -284,7 +285,7 @@ def calcular_delivery_real():
         for j in range(n_real):
             m_recortada[i][j] = matriz_cruzeiro[pontos_rota[i]][pontos_rota[j]]
             
-    
+
     def avalia_tsp(sol, m):
         soma = 0
         for i in range(len(sol) - 1):
@@ -292,7 +293,7 @@ def calcular_delivery_real():
         soma += m[sol[-1]][sol[0]] 
         return soma
 
-    
+ 
     si = list(range(n_real))
     vi = avalia_tsp(si, m_recortada)
     
@@ -304,16 +305,19 @@ def calcular_delivery_real():
     else: 
         sf, cf, _ = metodo_tempera_simulada(si, vi, n_real, m_recortada, ti, tf, fr)
     
-   
     cf = avalia_tsp(sf, m_recortada)
     
-    rota_nomes = [bairros[pontos_rota[idx]] for idx in sf]
-    rota_nomes.append(bairros[0]) 
+    idx_zero = sf.index(0)
+    sf_rotacionado = sf[idx_zero:] + sf[:idx_zero]
+ 
+    rota_nomes = [bairros[pontos_rota[idx]] for idx in sf_rotacionado]
+    
+    rota_nomes.append(bairros[pontos_rota[0]])
     
     return jsonify({
         "rota_bairros": rota_nomes,
-        "distancia_km": round(cf, 2)
+        "distancia_km": round(cf, 2),
+        "metodo_usado": metodo
     })
-
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
