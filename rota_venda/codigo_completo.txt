@@ -14,11 +14,8 @@
 <div class="sidebar">
     <h2>PathFinder</h2>
     <button onclick="showScreen('basico')">Algoritmo Básico</button>
-    
     <button onclick="alert('Módulo em desenvolvimento'); showScreen('genetico')">Algoritmo Genético</button>
-    
     <button onclick="showScreen('sobre')">Sobre o Sistema</button>
-
     <button onclick="showScreen('appReal')">Delivery Real (Cruzeiro)</button>
 </div>
 
@@ -130,43 +127,17 @@
         </ul>
     </div>
 
-    
-        <h1>Simulador de Delivery (Cruzeiro-SP)</h1>
-        
-        <div class="panel">
-            <h3>1. Selecione os Destinos</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;" id="listaBairros">
-                <label><input type="checkbox" value="1"> FATEC (Vila Juvenal)</label>
-                <label><input type="checkbox" value="2"> Vila Paulista</label>
-                <label><input type="checkbox" value="3"> Itagaçaba</label>
-                <label><input type="checkbox" value="4"> Jardim América</label>
-                <label><input type="checkbox" value="5"> Retiro da Mantiqueira</label>
-                <label><input type="checkbox" value="6"> Vila Suíça</label>
-                <label><input type="checkbox" value="7"> Nova Cruzeiro</label>
-                <label><input type="checkbox" value="8"> Vila Canevari</label>
-                <label><input type="checkbox" value="9"> Jardim Paraíso</label>
-            </div>
-
-            <h3>2. Configuração do Algoritmo</h3>
-            <select id="metodoReal" onchange="toggleParametrosReal()" style="width: 100%; margin-bottom: 10px;">
-                <option value="hill">Subida de Encosta</option>
-                <option value="hillRestart">Subida de Encosta com Tentativas</option>
-                <option value="annealing">Têmpera Simulada</option>
-            </select>
-
-            <div id="paramsRealSET" style="display:none; margin-bottom: 10px;">
-                <label>TMAX:</label> <input type="number" id="tmaxReal" value="5" style="width: 60px;">
-            </div>
-            
-<div id="appReal" class="screen">
+    <div id="appReal" class="screen">
         <h1>Simulador de Delivery (Mapa Real)</h1>
         
         <div class="panel">
             <p>📍 <strong>Clique no mapa</strong> para adicionar locais ou utilize a pesquisa abaixo. O <span style="color:#ef4444; font-weight:bold;">1º ponto</span> será sempre a base (Restaurante).</p>
             
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <input type="text" id="buscaEndereco" placeholder="Ex: Rua Doutor Othon Barcellos, 123" style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #38bdf8; background: #0f172a; color: white;">
-                <button onclick="buscarEndereco()" style="background: #38bdf8; color: black; font-weight: bold; border: none; padding: 10px 20px;">🔍 Pesquisar</button>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; position: relative;">
+                <input type="text" id="buscaEndereco" oninput="sugerirEnderecos()" placeholder="Ex: Rua Doutor Othon Barcellos" style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #38bdf8; background: #0f172a; color: white;">
+                <button onclick="buscarEndereco()" style="background: #38bdf8; color: black; font-weight: bold; border: none; padding: 10px 20px; border-radius: 5px;">🔍 Pesquisar</button>
+                
+                <div id="listaSugestoes" style="display: none; position: absolute; top: 100%; left: 0; right: 125px; background: #1e293b; border: 1px solid #38bdf8; border-radius: 5px; z-index: 1000; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.5);"></div>
             </div>
 
             <div id="mapaDelivery" style="height: 450px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 2px solid #38bdf8; z-index: 1;"></div>
@@ -204,23 +175,20 @@
         </div>
     </div>
 
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>
-
 let matrizProblema = [];
 let solucaoAtual = [];
 let custoAtual = 0;
-
-
 let problemaAG = [];
-
 
 document.addEventListener("DOMContentLoaded", () => {
     let selectTipo = document.getElementById("tipoExecucao");
     let inputSolucao = document.getElementById("solucaoInicial");
 
-    
     function checarInput() {
         if (selectTipo.value === "random") {
             inputSolucao.disabled = true;
@@ -230,14 +198,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
- 
     checarInput();
     selectTipo.addEventListener("change", checarInput);
-    
-
     toggleParametros(); 
 });
-
 
 function showScreen(id){
     document.querySelectorAll(".screen").forEach(s=>{
@@ -246,17 +210,15 @@ function showScreen(id){
     document.getElementById(id).classList.add("active");
     
     if(id === 'appReal') {
-        setTimeout(() => initMapa(), 100); 
+        setTimeout(() => initMapa(), 100);
     }
 }
-
 
 function toggleParametros() {
     let metodo = document.getElementById("metodoBusca").value;
     document.getElementById("paramsSET").style.display = (metodo === "hillRestart") ? "block" : "none";
     document.getElementById("paramsTE").style.display = (metodo === "annealing") ? "block" : "none";
 }
-
 
 async function gerarProblema(){
     let n = parseInt(document.getElementById("tamProblema").value);
@@ -269,10 +231,8 @@ async function gerarProblema(){
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ tamanho: n, tipo: tipo, inicial: inicial })
         });
-        
         let data = await response.json();
         
-       
         if (data.erro) {
             document.getElementById("saidaBasico").textContent = "❌ [ERRO DE VALIDAÇÃO]\n" + data.erro;
             matrizProblema = []; 
@@ -291,7 +251,6 @@ async function gerarProblema(){
     }
 }
 
-
 function gerarSolucaoInicial() {
     if (matrizProblema.length === 0) {
         alert("Clique em 'Gerar Problema' primeiro!");
@@ -303,15 +262,13 @@ function gerarSolucaoInicial() {
         "\nCusto Inicial: " + custoAtual;
 }
 
-
 async function executarBasico(){
     if (matrizProblema.length === 0) {
-        alert("Gere o problema primeiro!"); return;
+        alert("Gere o problema primeiro!");
+        return;
     }
 
     let metodo = document.getElementById("metodoBusca").value;
-    
-   
     let tmax = document.getElementById("tmax") ? parseInt(document.getElementById("tmax").value) : 5;
     let ti = document.getElementById("ti") ? parseFloat(document.getElementById("ti").value) : 100;
     let tf = document.getElementById("tf") ? parseFloat(document.getElementById("tf").value) : 0.1;
@@ -335,7 +292,6 @@ async function executarBasico(){
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
-        
         let data = await response.json();
         
         if(data.erro) {
@@ -344,34 +300,27 @@ async function executarBasico(){
         }
         
         let saida = "";
-        
-       
         if (metodo === "comparativa") {
             saida = "\n\n=== RESULTADO DA ANÁLISE COMPARATIVA ===\n\n" + data.resultado_comparativo;
         } else {
-           
             saida = "\n\n=== RESULTADO DA EXECUÇÃO ===\n";
             saida += "Método: " + data.nome_metodo + "\n";
             saida += "Parâmetros Usados: " + data.parametros + "\n";
-            
             if (data.historico && data.historico.length > 0) {
                 saida += "\n--- Histórico de Soluções Aceitas ---\n";
                 data.historico.forEach((passo, index) => {
                     saida += `Passo ${index + 1}: [${passo.rota.join(", ")}] | Custo: ${passo.custo} ${passo.obs ? '('+passo.obs+')' : ''}\n`;
                 });
             }
-            
             saida += "\n>>> MELHOR ROTA FINAL: [" + data.solucao_final.join(", ") + "]";
             saida += "\n>>> CUSTO FINAL: " + data.custo_final;
         }
 
         document.getElementById("saidaBasico").textContent += saida;
-            
     } catch (error) {
         document.getElementById("saidaBasico").textContent += "\n\nErro na execução. O backend está rodando?";
     }
 }
-
 
 function gerarProblemaAG(){
     let n=parseInt(document.getElementById("agTam").value);
@@ -398,7 +347,6 @@ function executarAG(){
     let mut=parseFloat(document.getElementById("mut").value);
 
     let populacao=[];
-
     for(let i=0;i<popSize;i++){
         let ind=[];
         for(let j=0;j<problemaAG.length;j++){
@@ -408,19 +356,15 @@ function executarAG(){
     }
 
     let melhores=[];
-
     for(let g=0;g<gens;g++){
         populacao.sort((a,b)=>fitness(b)-fitness(a));
         melhores.push(fitness(populacao[0]));
-
         for(let i=popSize/2;i<popSize;i++){
             let pai=populacao[Math.floor(Math.random()*popSize/2)];
             let mae=populacao[Math.floor(Math.random()*popSize/2)];
             let filho=[];
-
             for(let j=0;j<pai.length;j++){
                 let gene=Math.random()<0.5 ? pai[j] : mae[j];
-                
                 if(Math.random()<mut){
                     gene=Math.random();
                 }
@@ -434,17 +378,12 @@ function executarAG(){
     document.getElementById("saidaAG").textContent= "Melhor fitness final: "+melhores[melhores.length-1];
 }
 
-
-let chartInstance = null; 
-
+let chartInstance = null;
 function mostrarGrafico(dados){
     let ctx=document.getElementById("grafico");
-    
-    
     if(chartInstance != null){
         chartInstance.destroy();
     }
-    
     chartInstance = new Chart(ctx,{
         type:"line",
         data:{
@@ -464,9 +403,10 @@ function mostrarGrafico(dados){
 // MODO DELIVERY MAPA REAL (Leaflet + OSRM + Nominatim)
 // ==========================================
 let mapaDelivery = null;
-let coordenadas = []; // Agora vai guardar {lat, lng, nome_rua}
+let coordenadas = []; 
 let marcadores = [];
 let linhaRota = null;
+let timeoutBusca = null;
 
 function toggleParametrosReal() {
     let metodo = document.getElementById("metodoReal").value;
@@ -480,24 +420,19 @@ function initMapa() {
         return;
     }
     
-    // Inicia o mapa focado em Cruzeiro-SP
     mapaDelivery = L.map('mapaDelivery').setView([-22.5761, -44.9631], 14);
-    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(mapaDelivery);
 
-    // Evento de clique: Faz a Geocodificação Reversa (descobre a rua clicada)
     mapaDelivery.on('click', async function(e) {
         let lat = e.latlng.lat;
         let lng = e.latlng.lng;
         
-        // Pergunta à API gratuita qual é o nome desta rua
         try {
             let response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
             let data = await response.json();
             
-            // Pega o nome da rua e o número (se existir)
             let nomeRua = data.address.road || "Rua não identificada";
             let numero = data.address.house_number ? `, ${data.address.house_number}` : "";
             let bairro = data.address.suburb ? ` - ${data.address.suburb}` : "";
@@ -510,13 +445,74 @@ function initMapa() {
     });
 }
 
-// Nova Função: Pesquisa de Endereço (Geocodificação)
+// NOVIDADE: Filtro invisível para deixar a pesquisa mais inteligente (ignora Rua, Travessa, etc)
+function limparTermoBusca(termo) {
+    return termo.replace(/^(rua|r\.|avenida|av\.|travessa|tv\.|praça|praca|pça|alameda|al\.|rodovia|rod\.|viela)\s+/i, '').trim();
+}
+
+async function sugerirEnderecos() {
+    let query = document.getElementById('buscaEndereco').value;
+    let lista = document.getElementById('listaSugestoes');
+    
+    if (query.trim().length < 4) {
+        lista.style.display = 'none';
+        return;
+    }
+
+    clearTimeout(timeoutBusca);
+    
+    timeoutBusca = setTimeout(async () => {
+        let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui
+        let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
+        
+        try {
+            let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(pesquisa)}&limit=5`);
+            let data = await response.json();
+            
+            lista.innerHTML = ''; 
+            
+            if(data.length > 0) {
+                lista.style.display = 'block';
+                
+                data.forEach(item => {
+                    let div = document.createElement('div');
+                    div.textContent = item.display_name.split(', Cruzeiro')[0]; 
+                    div.style.padding = '10px';
+                    div.style.cursor = 'pointer';
+                    div.style.borderBottom = '1px solid #334155';
+                    div.style.color = '#e2e8f0';
+                    
+                    div.onmouseover = () => { div.style.background = '#38bdf8'; div.style.color = '#0f172a'; };
+                    div.onmouseout = () => { div.style.background = 'transparent'; div.style.color = '#e2e8f0'; };
+                    
+                    div.onclick = () => {
+                        document.getElementById('buscaEndereco').value = div.textContent;
+                        lista.style.display = 'none'; 
+                        
+                        let lat = parseFloat(item.lat);
+                        let lng = parseFloat(item.lon);
+                        
+                        adicionarPontoNoMapa(lat, lng, item.name || div.textContent);
+                        mapaDelivery.setView([lat, lng], 16);
+                    };
+                    
+                    lista.appendChild(div);
+                });
+            } else {
+                lista.style.display = 'none';
+            }
+        } catch(err) {
+            console.log("Erro no Autocomplete");
+        }
+    }, 600); 
+}
+
 async function buscarEndereco() {
     let query = document.getElementById('buscaEndereco').value;
     if(query.trim() === "") return;
 
-    // Força a pesquisa a acontecer na cidade de Cruzeiro para resultados mais precisos
-    let pesquisa = `${query}, Cruzeiro, SP, Brasil`;
+    let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui também
+    let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
     
     document.getElementById('buscaEndereco').value = "A pesquisar...";
 
@@ -530,9 +526,9 @@ async function buscarEndereco() {
             let nomeRua = data[0].name || query;
             
             adicionarPontoNoMapa(lat, lng, nomeRua);
-            mapaDelivery.setView([lat, lng], 16); // Faz zoom no local encontrado
+            mapaDelivery.setView([lat, lng], 16);
         } else {
-            alert("Endereço não encontrado em Cruzeiro. Tente adicionar mais detalhes (ex: nome do bairro).");
+            alert("Endereço não encontrado em Cruzeiro. Tente adicionar o nome do bairro.");
         }
     } catch(err) {
         alert("Erro ao pesquisar endereço.");
@@ -541,25 +537,61 @@ async function buscarEndereco() {
     document.getElementById('buscaEndereco').value = "";
 }
 
-// Função central para adicionar o pino e guardar o nome
-function adicionarPontoNoMapa(lat, lng, nomeLocal) {
+function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
     let id_ponto = coordenadas.length;
     let cor = id_ponto === 0 ? '#ef4444' : '#3b82f6';
     let titulo = id_ponto === 0 ? "🏠 BASE" : `📦 ${id_ponto}`;
     
-    // Guarda na memória a coordenada E o nome real da rua
-    let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeLocal})` : `${titulo} - ${nomeLocal}`;
-    coordenadas.push({lat: lat, lng: lng, nome: nomeFinal});
+    let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeRuaBase})` : `${titulo} - ${nomeRuaBase}`;
     
+    // Guardamos o 'nomeRuaBase' para recriar o ponto com o texto certo se algum outro for apagado
+    coordenadas.push({lat: lat, lng: lng, nome: nomeFinal, ruaBase: nomeRuaBase});
+
     let marcador = L.circleMarker([lat, lng], {
         color: 'black', fillColor: cor, fillOpacity: 1, radius: 9
     }).addTo(mapaDelivery);
-    
-    // Mostra o nome da rua PERMANENTEMENTE no mapa
+
     marcador.bindTooltip(nomeFinal, {permanent: true, direction: 'top', offset: [0, -10]}).openTooltip();
-    
+
+    // NOVIDADE: Adiciona o Popup com o botão de excluir
+    let popupContent = `
+        <div style="text-align: center; color: black; font-family: sans-serif;">
+            <b style="font-size: 14px; display: block; margin-bottom: 10px;">${nomeFinal}</b>
+            <button onclick="removerPonto(${id_ponto})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">🗑️ Excluir Ponto</button>
+        </div>
+    `;
+    marcador.bindPopup(popupContent);
+
     marcadores.push(marcador);
 }
+
+// NOVIDADE: Função global para excluir o ponto e redesenhar o mapa
+window.removerPonto = function(index) {
+    // 1. Remove do array de coordenadas
+    coordenadas.splice(index, 1);
+    
+    // 2. Limpa todos os desenhos (marcadores e linhas) do mapa
+    marcadores.forEach(m => mapaDelivery.removeLayer(m));
+    marcadores = [];
+    if (linhaRota) mapaDelivery.removeLayer(linhaRota);
+    
+    // 3. Faz um backup e zera as coordenadas
+    let backupCoords = [...coordenadas];
+    coordenadas = [];
+    
+    // 4. Re-adiciona os pontos um por um (isso atualiza as tags "Cliente 1, Cliente 2" na ordem correta)
+    backupCoords.forEach(ponto => {
+        adicionarPontoNoMapa(ponto.lat, ponto.lng, ponto.ruaBase);
+    });
+    
+    // 5. Avisa o usuário na tela preta
+    let saidaDelivery = document.getElementById("saidaDelivery");
+    saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido! Se uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
+    saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
+    
+    // Fecha o popup que estava aberto
+    mapaDelivery.closePopup();
+};
 
 function limparMapa() {
     coordenadas = [];
@@ -569,6 +601,15 @@ function limparMapa() {
     document.getElementById("saidaDelivery").textContent = "Mapa limpo! Pode adicionar novos pontos.";
 }
 
+// Fecha as sugestões se clicar fora
+document.addEventListener('click', function(event) {
+    let input = document.getElementById('buscaEndereco');
+    let lista = document.getElementById('listaSugestoes');
+    if (event.target !== input && event.target !== lista) {
+        if(lista) lista.style.display = 'none';
+    }
+});
+
 async function calcularDeliveryMapa() {
     if (coordenadas.length < 2) {
         alert("Adicione ao menos 1 Restaurante (Base) e 1 Cliente!");
@@ -576,7 +617,7 @@ async function calcularDeliveryMapa() {
     }
 
     let payload = {
-        coordenadas: coordenadas.map(c => ({lat: c.lat, lng: c.lng})), // Envia apenas as coordenadas para o Python
+        coordenadas: coordenadas.map(c => ({lat: c.lat, lng: c.lng})),
         metodo: document.getElementById("metodoReal").value,
         tmax: parseInt(document.getElementById("tmaxReal").value),
         ti: parseFloat(document.getElementById("tiReal").value),
@@ -601,17 +642,14 @@ async function calcularDeliveryMapa() {
             return;
         }
 
-        // DESENHAR A ROTA NO MAPA
         if (linhaRota) mapaDelivery.removeLayer(linhaRota);
         let pontosDaRota = data.ordem_indices.map(idx => [coordenadas[idx].lat, coordenadas[idx].lng]);
         linhaRota = L.polyline(pontosDaRota, {color: '#ef4444', weight: 4, dashArray: '10, 10'}).addTo(mapaDelivery);
 
-        // CONTAS FINANCEIRAS
         let preco = parseFloat(document.getElementById("precoGasolina").value);
         let consumo = parseFloat(document.getElementById("consumoMoto").value);
         let custo = (data.distancia_km / consumo) * preco;
 
-        // O JavaScript agora usa os nomes REAIS guardados no array "coordenadas"
         let txtRota = data.ordem_indices.map(idx => coordenadas[idx].nome).join("\n ➔ ");
 
         let res = "\n==================================";
@@ -650,7 +688,7 @@ def sucessor_pcv(atual, va, n, m):
     flag = True
     melhor = []
     vm = 0
-    
+   
     for i in range(n):
         if i != p:
             suc = atual.copy()
@@ -681,7 +719,6 @@ def gera_vizinho_aleatorio(atual, n):
     novo[p1] = novo[p2]
     novo[p2] = x
     return novo
-
 
 def metodo_subida_encosta(si, vi, n, m):
     atual = si.copy()
@@ -753,18 +790,15 @@ def metodo_tempera_simulada(si, vi, n, m, ti, tf, fr):
 
 def executar_analise_comparativa(si, vi, n, m):
     resultados = []
-    
   
     _, c_se, _ = metodo_subida_encosta(si, vi, n, m)
     resultados.append(f"SE: Melhor Custo Encontrado = {c_se}")
     
-
     tmax_vals = [n, max(1, int(n/2)), max(1, int(n/4))]
     for t in tmax_vals:
         _, c_set, _ = metodo_subida_tentativas(si, vi, n, m, t)
         resultados.append(f"SET (TMAX={t}): Melhor Custo = {c_set}")
         
-    
     configs_te = [
         (100, 0.1, 0.8), (200, 0.1, 0.8), (500, 0.1, 0.8),
         (200, 0.1, 0.9), (500, 0.1, 0.9),
@@ -775,7 +809,6 @@ def executar_analise_comparativa(si, vi, n, m):
         resultados.append(f"TE (TI={ti}, TF={tf}, FR={fr}): Melhor Custo = {c_te}")
         
     return "\n".join(resultados)
-
 
 @app.route('/gerar_problema_pcv', methods=['POST'])
 def gerar_problema_pcv():
@@ -795,24 +828,18 @@ def gerar_problema_pcv():
                 except ValueError:
                     return jsonify({"erro": "Entrada inválida. Digite apenas números separados por vírgula."})
         
-      
         if len(solucao_inicial) != n:
             return jsonify({"erro": f"Você escolheu Tamanho {n}, mas digitou {len(solucao_inicial)} números. A quantidade deve ser exata."})
             
-        
         for val in solucao_inicial:
             if val < 0 or val >= n:
                 return jsonify({"erro": f"Número inválido detectado: {val}.\nPara um problema de tamanho {n}, os números válidos são de 0 até {n-1}."})
                 
-       
         if len(set(solucao_inicial)) != len(solucao_inicial):
             return jsonify({"erro": "A solução inicial não pode conter números repetidos!"})
-            
     else:
-        
         solucao_inicial = list(range(n))
         random.shuffle(solucao_inicial)
-    
     
     m = [[0] * n for i in range(n)]
     for i in range(n):
@@ -869,7 +896,6 @@ def executar_basico():
         "solucao_final": sf,
         "custo_final": cf
     })
-
 
 # ==========================================
 # ROTA: MODO DELIVERY COM MAPA REAL (OSRM)

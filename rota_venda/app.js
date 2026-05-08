@@ -34,8 +34,8 @@ function showScreen(id){
 
 function toggleParametros() {
     let metodo = document.getElementById("metodoBusca").value;
-    document.getElementById("paramsSET").style.display = (metodo === "hillRestart") ? "block" : "none";
-    document.getElementById("paramsTE").style.display = (metodo === "annealing") ? "block" : "none";
+    document.getElementById("paramsSET").style.display = (metodo === "tentativas") ? "block" : "none";
+    document.getElementById("paramsTE").style.display = (metodo === "tempera") ? "block" : "none";
 }
 
 async function gerarProblema(){
@@ -52,7 +52,7 @@ async function gerarProblema(){
         let data = await response.json();
         
         if (data.erro) {
-            document.getElementById("saidaBasico").textContent = "❌ [ERRO DE VALIDAÇÃO]\n" + data.erro;
+            document.getElementById("saidaBasico").textContent = " [ERRO DE VALIDAÇÃO]\n" + data.erro;
             matrizProblema = []; 
             return; 
         }
@@ -217,18 +217,19 @@ function mostrarGrafico(dados){
     });
 }
 
-// ==========================================
-// MODO DELIVERY MAPA REAL (Leaflet + OSRM + Nominatim)
-// ==========================================
+
+// MODO DELIVERY (Leaflet + OSRM + Nominatim)
+
 let mapaDelivery = null;
-let coordenadas = []; // Guarda {lat, lng, nome}
+let coordenadas = []; 
 let marcadores = [];
 let linhaRota = null;
+let timeoutBusca = null;
 
 function toggleParametrosReal() {
     let metodo = document.getElementById("metodoReal").value;
-    document.getElementById("paramsRealSET").style.display = (metodo === "hillRestart") ? "block" : "none";
-    document.getElementById("paramsRealTE").style.display = (metodo === "annealing") ? "block" : "none";
+    document.getElementById("paramsRealSET").style.display = (metodo === "tentativas") ? "block" : "none";
+    document.getElementById("paramsRealTE").style.display = (metodo === "tempera") ? "block" : "none";
 }
 
 function initMapa() {
@@ -237,13 +238,11 @@ function initMapa() {
         return;
     }
     
-    // Inicia o mapa focado em Cruzeiro-SP
     mapaDelivery = L.map('mapaDelivery').setView([-22.5761, -44.9631], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(mapaDelivery);
 
-    // Evento de clique: Faz a Geocodificação Reversa
     mapaDelivery.on('click', async function(e) {
         let lat = e.latlng.lat;
         let lng = e.latlng.lng;
@@ -264,59 +263,53 @@ function initMapa() {
     });
 }
 
-let timeoutBusca = null;
+
+function limparTermoBusca(termo) {
+    return termo.replace(/^(rua|r\.|avenida|av\.|travessa|tv\.|praça|praca|pça|alameda|al\.|rodovia|rod\.|viela)\s+/i, '').trim();
+}
 
 async function sugerirEnderecos() {
     let query = document.getElementById('buscaEndereco').value;
     let lista = document.getElementById('listaSugestoes');
     
-    // Só pesquisa se tiver digitado pelo menos 4 letras
     if (query.trim().length < 4) {
         lista.style.display = 'none';
         return;
     }
 
-    // DEBOUNCE: Cancela a pesquisa anterior se o usuário ainda estiver digitando
     clearTimeout(timeoutBusca);
     
-    // Aguarda 600 milissegundos após o usuário parar de digitar para chamar a API
     timeoutBusca = setTimeout(async () => {
-        let pesquisa = `${query}, Cruzeiro, SP, Brasil`;
+        let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui
+        let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
         
         try {
-            // Pede ao OpenStreetMap apenas 5 resultados para ser bem rápido
             let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(pesquisa)}&limit=5`);
             let data = await response.json();
             
-            lista.innerHTML = ''; // Limpa as sugestões antigas
+            lista.innerHTML = ''; 
             
             if(data.length > 0) {
                 lista.style.display = 'block';
                 
                 data.forEach(item => {
                     let div = document.createElement('div');
-                    // Limpa o texto para não ficar repetindo "Cruzeiro, Microrregião de Guaratinguetá..."
                     div.textContent = item.display_name.split(', Cruzeiro')[0]; 
                     div.style.padding = '10px';
                     div.style.cursor = 'pointer';
                     div.style.borderBottom = '1px solid #334155';
                     div.style.color = '#e2e8f0';
                     
-                    // Efeitos visuais de passar o mouse
-                    div.onmouseover = () => div.style.background = '#38bdf8';
-                    div.onmouseover = () => div.style.color = '#0f172a';
-                    div.onmouseout = () => div.style.background = 'transparent';
-                    div.onmouseout = () => div.style.color = '#e2e8f0';
+                    div.onmouseover = () => { div.style.background = '#38bdf8'; div.style.color = '#0f172a'; };
+                    div.onmouseout = () => { div.style.background = 'transparent'; div.style.color = '#e2e8f0'; };
                     
-                    // O que acontece quando o usuário CLICA na sugestão:
                     div.onclick = () => {
                         document.getElementById('buscaEndereco').value = div.textContent;
-                        lista.style.display = 'none'; // Esconde a caixinha
+                        lista.style.display = 'none'; 
                         
                         let lat = parseFloat(item.lat);
                         let lng = parseFloat(item.lon);
                         
-                        // Já adiciona direto no mapa!
                         adicionarPontoNoMapa(lat, lng, item.name || div.textContent);
                         mapaDelivery.setView([lat, lng], 16);
                     };
@@ -329,23 +322,16 @@ async function sugerirEnderecos() {
         } catch(err) {
             console.log("Erro no Autocomplete");
         }
-    }, 600); // 600ms de atraso
+    }, 600); 
 }
-
-// Para fechar a caixinha de sugestões se o usuário clicar fora dela
-document.addEventListener('click', function(event) {
-    let input = document.getElementById('buscaEndereco');
-    let lista = document.getElementById('listaSugestoes');
-    if (event.target !== input && event.target !== lista) {
-        if(lista) lista.style.display = 'none';
-    }
-});
 
 async function buscarEndereco() {
     let query = document.getElementById('buscaEndereco').value;
     if(query.trim() === "") return;
 
-    let pesquisa = `${query}, Cruzeiro, SP, Brasil`;
+    let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui também
+    let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
+    
     document.getElementById('buscaEndereco').value = "A pesquisar...";
 
     try {
@@ -360,7 +346,7 @@ async function buscarEndereco() {
             adicionarPontoNoMapa(lat, lng, nomeRua);
             mapaDelivery.setView([lat, lng], 16);
         } else {
-            alert("Endereço não encontrado em Cruzeiro. Tente adicionar mais detalhes (ex: nome do bairro).");
+            alert("Endereço não encontrado em Cruzeiro. Tente adicionar o nome do bairro.");
         }
     } catch(err) {
         alert("Erro ao pesquisar endereço.");
@@ -369,33 +355,82 @@ async function buscarEndereco() {
     document.getElementById('buscaEndereco').value = "";
 }
 
-function adicionarPontoNoMapa(lat, lng, nomeLocal) {
+function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
     let id_ponto = coordenadas.length;
     let cor = id_ponto === 0 ? '#ef4444' : '#3b82f6';
-    let titulo = id_ponto === 0 ? "🏠 BASE" : `📦 ${id_ponto}`;
+    let titulo = id_ponto === 0 ? "PONTO INICIAL" : `📦 ${id_ponto}`;
     
-    let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeLocal})` : `${titulo} - ${nomeLocal}`;
-    coordenadas.push({lat: lat, lng: lng, nome: nomeFinal});
+    let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeRuaBase})` : `${titulo} - ${nomeRuaBase}`;
+    
+    // Guardamos o 'nomeRuaBase' para recriar o ponto com o texto certo se algum outro for apagado
+    coordenadas.push({lat: lat, lng: lng, nome: nomeFinal, ruaBase: nomeRuaBase});
 
     let marcador = L.circleMarker([lat, lng], {
         color: 'black', fillColor: cor, fillOpacity: 1, radius: 9
     }).addTo(mapaDelivery);
 
     marcador.bindTooltip(nomeFinal, {permanent: true, direction: 'top', offset: [0, -10]}).openTooltip();
+
+    // NOVIDADE: Adiciona o Popup com o botão de excluir
+    let popupContent = `
+        <div style="text-align: center; color: black; font-family: sans-serif;">
+            <b style="font-size: 14px; display: block; margin-bottom: 10px;">${nomeFinal}</b>
+            <button onclick="removerPonto(${id_ponto})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">🗑️ Excluir Ponto</button>
+        </div>
+    `;
+    marcador.bindPopup(popupContent);
+
     marcadores.push(marcador);
 }
+
+// NOVIDADE: Função global para excluir o ponto e redesenhar o mapa
+window.removerPonto = function(index) {
+    // 1. Remove do array de coordenadas
+    coordenadas.splice(index, 1);
+    
+    // 2. Limpa todos os desenhos (marcadores e linhas) do mapa
+    marcadores.forEach(m => mapaDelivery.removeLayer(m));
+    marcadores = [];
+    if (linhaRota) mapaDelivery.removeLayer(linhaRota);
+    
+    // 3. Faz um backup e zera as coordenadas
+    let backupCoords = [...coordenadas];
+    coordenadas = [];
+    
+    // 4. Re-adiciona os pontos um por um (isso atualiza as tags "Cliente 1, Cliente 2" na ordem correta)
+    backupCoords.forEach(ponto => {
+        adicionarPontoNoMapa(ponto.lat, ponto.lng, ponto.ruaBase);
+    });
+    
+    // 5. Avisa o usuário na tela preta
+    let saidaDelivery = document.getElementById("saidaDelivery");
+    saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido! Se uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
+    saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
+    
+    // Fecha o popup que estava aberto
+    mapaDelivery.closePopup();
+};
 
 function limparMapa() {
     coordenadas = [];
     marcadores.forEach(m => mapaDelivery.removeLayer(m));
     marcadores = [];
     if (linhaRota) mapaDelivery.removeLayer(linhaRota);
-    document.getElementById("saidaDelivery").textContent = "Mapa limpo! Pode adicionar novos pontos.";
+    document.getElementById("saidaDelivery").textContent = "Mapa limpo!.";
 }
+
+// Fecha as sugestões se clicar fora
+document.addEventListener('click', function(event) {
+    let input = document.getElementById('buscaEndereco');
+    let lista = document.getElementById('listaSugestoes');
+    if (event.target !== input && event.target !== lista) {
+        if(lista) lista.style.display = 'none';
+    }
+});
 
 async function calcularDeliveryMapa() {
     if (coordenadas.length < 2) {
-        alert("Adicione ao menos 1 Restaurante (Base) e 1 Cliente!");
+        alert("Adicione ao menos 1 Restaurante (Ponto inicial) e 1 Cliente!");
         return;
     }
 
@@ -409,7 +444,7 @@ async function calcularDeliveryMapa() {
     };
 
     let saidaDelivery = document.getElementById("saidaDelivery");
-    saidaDelivery.textContent += "\n\n🌐 A calcular distâncias reais e a otimizar rota...";
+    saidaDelivery.textContent += "\n\n Calculando distâncias...";
 
     try {
         let response = await fetch('http://127.0.0.1:5000/calcular_delivery_mapa', {
@@ -437,9 +472,9 @@ async function calcularDeliveryMapa() {
 
         let res = "\n==================================";
         res += "\nMÉTODO: " + (data.metodo_usado.toUpperCase());
-        res += "\n📍 ROTA OTIMIZADA:\n" + txtRota;
+        res += "\n ROTA OTIMIZADA:\n" + txtRota;
         res += "\n----------------------------------";
-        res += "\n🛣️ TOTAL: " + data.distancia_km + " km   |   ⛽ CUSTO: R$ " + custo.toFixed(2);
+        res += "\n TOTAL: " + data.distancia_km + " km   |   CUSTO: R$ " + custo.toFixed(2);
         res += "\n==================================";
 
         saidaDelivery.textContent += res;

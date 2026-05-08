@@ -204,15 +204,15 @@ def executar_basico():
     sf, cf, historico, parametros = [], 0, [], ""
     resultado_comparativo = ""
     
-    if metodo == 'hill':
+    if metodo == 'encosta':
         sf, cf, historico = metodo_subida_encosta(si, vi, n, matriz)
         nome_metodo = "Subida de Encosta"
         parametros = "Padrão"
-    elif metodo == 'hillRestart':
+    elif metodo == 'tentativas':
         sf, cf, historico = metodo_subida_tentativas(si, vi, n, matriz, tmax)
         nome_metodo = "Subida de Encosta com Tentativas"
         parametros = f"TMAX = {tmax}"
-    elif metodo == 'annealing':
+    elif metodo == 'tempera':
         sf, cf, historico = metodo_tempera_simulada(si, vi, n, matriz, ti, tf, fr)
         nome_metodo = "Têmpera Simulada"
         parametros = f"TI = {ti}, TF = {tf}, FR = {fr}"
@@ -229,14 +229,14 @@ def executar_basico():
         "custo_final": cf
     })
 
-# ==========================================
-# ROTA: MODO DELIVERY COM MAPA REAL (OSRM)
-# ==========================================
+
+#MODO DELIVERY COM MAPA
+
 @app.route('/calcular_delivery_mapa', methods=['POST'])
 def calcular_delivery_mapa():
     dados = request.json
     coords = dados.get('coordenadas', [])
-    metodo = dados.get('metodo', 'hill')
+    metodo = dados.get('metodo', 'encosta')
     
     tmax = dados.get('tmax', 5)
     ti = dados.get('ti', 100)
@@ -247,7 +247,7 @@ def calcular_delivery_mapa():
     if n_real < 2:
         return jsonify({"erro": "Adicione pelo menos o Restaurante e um Cliente."})
 
-    # Monta a URL para a API do OSRM (formato: lon,lat;lon,lat...)
+    
     str_coords = ";".join([f"{c['lng']},{c['lat']}" for c in coords])
     url_osrm = f"http://router.project-osrm.org/table/v1/driving/{str_coords}?annotations=distance"
     
@@ -258,7 +258,7 @@ def calcular_delivery_mapa():
         if osrm_data.get('code') != 'Ok':
             return jsonify({"erro": "Erro ao consultar as ruas no OSRM."})
             
-        # O OSRM devolve uma matriz em metros. Vamos transformar em km.
+        
         matriz_metros = osrm_data['distances']
         m_recortada = [[val / 1000.0 for val in linha] for linha in matriz_metros]
         
@@ -276,9 +276,9 @@ def calcular_delivery_mapa():
     vi = avalia_tsp(si, m_recortada)
     
     sf, cf = [], 0
-    if metodo == 'hill':
+    if metodo == 'encosta':
         sf, cf, _ = metodo_subida_encosta(si, vi, n_real, m_recortada)
-    elif metodo == 'hillRestart':
+    elif metodo == 'tentativas':
         sf, cf, _ = metodo_subida_tentativas(si, vi, n_real, m_recortada, tmax)
     else: 
         sf, cf, _ = metodo_tempera_simulada(si, vi, n_real, m_recortada, ti, tf, fr)
@@ -287,7 +287,7 @@ def calcular_delivery_mapa():
     
     idx_zero = sf.index(0)
     sf_rotacionado = sf[idx_zero:] + sf[:idx_zero]
-    sf_rotacionado.append(0) # Volta para o restaurante
+    sf_rotacionado.append(0) 
     
     return jsonify({
         "ordem_indices": sf_rotacionado,
