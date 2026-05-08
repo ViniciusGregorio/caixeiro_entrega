@@ -14,11 +14,8 @@
 <div class="sidebar">
     <h2>PathFinder</h2>
     <button onclick="showScreen('basico')">Algoritmo Básico</button>
-    
     <button onclick="alert('Módulo em desenvolvimento'); showScreen('genetico')">Algoritmo Genético</button>
-    
     <button onclick="showScreen('sobre')">Sobre o Sistema</button>
-
     <button onclick="showScreen('appReal')">Delivery Real (Cruzeiro)</button>
 </div>
 
@@ -130,42 +127,22 @@
         </ul>
     </div>
 
-    
-        <h1>Simulador de Delivery (Cruzeiro-SP)</h1>
-        
-        <div class="panel">
-            <h3>1. Selecione os Destinos</h3>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;" id="listaBairros">
-                <label><input type="checkbox" value="1"> FATEC (Vila Juvenal)</label>
-                <label><input type="checkbox" value="2"> Vila Paulista</label>
-                <label><input type="checkbox" value="3"> Itagaçaba</label>
-                <label><input type="checkbox" value="4"> Jardim América</label>
-                <label><input type="checkbox" value="5"> Retiro da Mantiqueira</label>
-                <label><input type="checkbox" value="6"> Vila Suíça</label>
-                <label><input type="checkbox" value="7"> Nova Cruzeiro</label>
-                <label><input type="checkbox" value="8"> Vila Canevari</label>
-                <label><input type="checkbox" value="9"> Jardim Paraíso</label>
-            </div>
-
-            <h3>2. Configuração do Algoritmo</h3>
-            <select id="metodoReal" onchange="toggleParametrosReal()" style="width: 100%; margin-bottom: 10px;">
-                <option value="hill">Subida de Encosta</option>
-                <option value="hillRestart">Subida de Encosta com Tentativas</option>
-                <option value="annealing">Têmpera Simulada</option>
-            </select>
-
-            <div id="paramsRealSET" style="display:none; margin-bottom: 10px;">
-                <label>TMAX:</label> <input type="number" id="tmaxReal" value="5" style="width: 60px;">
-            </div>
-<div id="appReal" class="screen">
+    <div id="appReal" class="screen">
         <h1>Simulador de Delivery (Mapa Real)</h1>
         
         <div class="panel">
-            <p>📍 <strong>Clique no mapa</strong> para adicionar locais. O <span style="color:#ef4444; font-weight:bold;">1º clique</span> será a base (Restaurante).</p>
+            <p>📍 <strong>Clique no mapa</strong> para adicionar locais ou utilize a pesquisa abaixo. O <span style="color:#ef4444; font-weight:bold;">1º ponto</span> será sempre a base (Restaurante).</p>
             
-            <div id="mapaDelivery" style="height: 400px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 2px solid #38bdf8; z-index: 1;"></div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; position: relative;">
+                <input type="text" id="buscaEndereco" oninput="sugerirEnderecos()" placeholder="Ex: Rua Doutor Othon Barcellos" style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #38bdf8; background: #0f172a; color: white;">
+                <button onclick="buscarEndereco()" style="background: #38bdf8; color: black; font-weight: bold; border: none; padding: 10px 20px; border-radius: 5px;">🔍 Pesquisar</button>
+                
+                <div id="listaSugestoes" style="display: none; position: absolute; top: 100%; left: 0; right: 125px; background: #1e293b; border: 1px solid #38bdf8; border-radius: 5px; z-index: 1000; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.5);"></div>
+            </div>
+
+            <div id="mapaDelivery" style="height: 450px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 2px solid #38bdf8; z-index: 1;"></div>
             
-            <button onclick="limparMapa()" style="background: #ef4444; color: white; border: none; margin-bottom: 15px;">🗑️ Limpar Mapa</button>
+            <button onclick="limparMapa()" style="background: #ef4444; color: white; border: none; margin-bottom: 15px; width: 100%;">🗑️ Limpar Mapa</button>
 
             <h3>Configuração do Algoritmo</h3>
             <select id="metodoReal" onchange="toggleParametrosReal()" style="width: 100%; margin-bottom: 10px;">
@@ -194,7 +171,7 @@
 
         <div class="panel">
             <h3>Itinerário e Custos:</h3>
-            <pre id="saidaDelivery" style="min-height: 150px; border-left: 4px solid #38bdf8;"></pre>
+            <pre id="saidaDelivery" style="min-height: 150px; border-left: 4px solid #38bdf8; white-space: pre-wrap;"></pre>
         </div>
     </div>
 

@@ -20,7 +20,7 @@ def sucessor_pcv(atual, va, n, m):
     flag = True
     melhor = []
     vm = 0
-    
+   
     for i in range(n):
         if i != p:
             suc = atual.copy()
@@ -51,7 +51,6 @@ def gera_vizinho_aleatorio(atual, n):
     novo[p1] = novo[p2]
     novo[p2] = x
     return novo
-
 
 def metodo_subida_encosta(si, vi, n, m):
     atual = si.copy()
@@ -123,18 +122,15 @@ def metodo_tempera_simulada(si, vi, n, m, ti, tf, fr):
 
 def executar_analise_comparativa(si, vi, n, m):
     resultados = []
-    
   
     _, c_se, _ = metodo_subida_encosta(si, vi, n, m)
     resultados.append(f"SE: Melhor Custo Encontrado = {c_se}")
     
-
     tmax_vals = [n, max(1, int(n/2)), max(1, int(n/4))]
     for t in tmax_vals:
         _, c_set, _ = metodo_subida_tentativas(si, vi, n, m, t)
         resultados.append(f"SET (TMAX={t}): Melhor Custo = {c_set}")
         
-    
     configs_te = [
         (100, 0.1, 0.8), (200, 0.1, 0.8), (500, 0.1, 0.8),
         (200, 0.1, 0.9), (500, 0.1, 0.9),
@@ -145,7 +141,6 @@ def executar_analise_comparativa(si, vi, n, m):
         resultados.append(f"TE (TI={ti}, TF={tf}, FR={fr}): Melhor Custo = {c_te}")
         
     return "\n".join(resultados)
-
 
 @app.route('/gerar_problema_pcv', methods=['POST'])
 def gerar_problema_pcv():
@@ -165,24 +160,18 @@ def gerar_problema_pcv():
                 except ValueError:
                     return jsonify({"erro": "Entrada inválida. Digite apenas números separados por vírgula."})
         
-      
         if len(solucao_inicial) != n:
             return jsonify({"erro": f"Você escolheu Tamanho {n}, mas digitou {len(solucao_inicial)} números. A quantidade deve ser exata."})
             
-        
         for val in solucao_inicial:
             if val < 0 or val >= n:
                 return jsonify({"erro": f"Número inválido detectado: {val}.\nPara um problema de tamanho {n}, os números válidos são de 0 até {n-1}."})
                 
-       
         if len(set(solucao_inicial)) != len(solucao_inicial):
             return jsonify({"erro": "A solução inicial não pode conter números repetidos!"})
-            
     else:
-        
         solucao_inicial = list(range(n))
         random.shuffle(solucao_inicial)
-    
     
     m = [[0] * n for i in range(n)]
     for i in range(n):
@@ -239,7 +228,6 @@ def executar_basico():
         "solucao_final": sf,
         "custo_final": cf
     })
-
 
 # ==========================================
 # ROTA: MODO DELIVERY COM MAPA REAL (OSRM)
