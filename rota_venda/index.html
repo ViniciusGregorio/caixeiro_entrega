@@ -16,6 +16,8 @@
     <button onclick="alert('Módulo em desenvolvimento'); showScreen('genetico')">Algoritmo Genético</button>
     
     <button onclick="showScreen('sobre')">Sobre o Sistema</button>
+
+    <button onclick="showScreen('appReal')">Delivery Real (Cruzeiro)</button>
 </div>
 
 <div class="main">
@@ -124,6 +126,54 @@
             <li>Busca Local: Têmpera Simulada (Simulated Annealing)</li>
             <li>Algoritmos Genéticos (Módulo Futuro)</li>
         </ul>
+    </div>
+
+    <div id="appReal" class="screen">
+        <h1>Simulador de Delivery (Cruzeiro-SP)</h1>
+        
+        <div class="panel">
+            <h3>1. Selecione os Destinos</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;" id="listaBairros">
+                <label><input type="checkbox" value="1"> FATEC (Vila Juvenal)</label>
+                <label><input type="checkbox" value="2"> Vila Paulista</label>
+                <label><input type="checkbox" value="3"> Itagaçaba</label>
+                <label><input type="checkbox" value="4"> Jardim América</label>
+                <label><input type="checkbox" value="5"> Retiro da Mantiqueira</label>
+                <label><input type="checkbox" value="6"> Vila Suíça</label>
+                <label><input type="checkbox" value="7"> Nova Cruzeiro</label>
+                <label><input type="checkbox" value="8"> Vila Canevari</label>
+                <label><input type="checkbox" value="9"> Jardim Paraíso</label>
+            </div>
+
+            <h3>2. Configuração do Algoritmo</h3>
+            <select id="metodoReal" onchange="toggleParametrosReal()" style="width: 100%; margin-bottom: 10px;">
+                <option value="hill">Subida de Encosta</option>
+                <option value="hillRestart">Subida de Encosta com Tentativas</option>
+                <option value="annealing">Têmpera Simulada</option>
+            </select>
+
+            <div id="paramsRealSET" style="display:none; margin-bottom: 10px;">
+                <label>TMAX:</label> <input type="number" id="tmaxReal" value="5" style="width: 60px;">
+            </div>
+
+            <div id="paramsRealTE" style="display:none; margin-bottom: 10px;">
+                <label>TI:</label> <input type="number" id="tiReal" value="100" style="width: 60px;">
+                <label>TF:</label> <input type="number" id="tfReal" value="0.1" style="width: 60px;">
+                <label>FR:</label> <input type="number" id="frReal" value="0.9" style="width: 60px;">
+            </div>
+
+            <div style="display: flex; gap: 10px; background: #0f172a; padding: 10px; border-radius: 5px;">
+                <label>Gasolina R$ <input type="number" id="precoGasolina" value="5.80" step="0.01" style="width: 70px;"></label>
+                <label>Consumo km/L <input type="number" id="consumoMoto" value="35" style="width: 50px;"></label>
+            </div>
+
+            <button onclick="calcularDelivery()" style="margin-top: 15px; width: 100%;">Calcular Rota Otimizada</button>
+        </div>
+
+        <div class="panel">
+            <h3>Itinerário e Custos:</h3>
+            <pre id="saidaDelivery" style="min-height: 150px; border-left: 4px solid #38bdf8;"></pre>
+        </div>
     </div>
 
 </div>

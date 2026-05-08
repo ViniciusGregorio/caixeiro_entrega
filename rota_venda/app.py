@@ -239,5 +239,81 @@ def executar_basico():
         "custo_final": cf
     })
 
+# MODO DELIVERY REAL (Cruzeiro-SP)
+
+@app.route('/calcular_delivery_real', methods=['POST'])
+def calcular_delivery_real():
+    dados = request.json
+    destinos_selecionados = dados.get('destinos', [])
+    metodo = dados.get('metodo', 'hill')
+    
+   
+    tmax = dados.get('tmax', 5)
+    ti = dados.get('ti', 100)
+    tf = dados.get('tf', 0.1)
+    fr = dados.get('fr', 0.8)
+    
+    bairros = [
+        "Restaurante (Origem)", "FATEC (Vila Juvenal)", "Vila Paulista", 
+        "Itagaçaba", "Jardim América", "Retiro da Mantiqueira", 
+        "Vila Suíça", "Nova Cruzeiro", "Vila Canevari", "Jardim Paraíso"
+    ]
+    
+    
+    matriz_cruzeiro = [
+        [0.0, 2.5, 1.5, 3.0, 2.0, 4.5, 1.0, 3.5, 2.8, 4.0], # 0 Restaurante
+        [2.5, 0.0, 3.0, 5.0, 4.0, 6.5, 3.2, 5.5, 1.5, 6.0], # 1 FATEC
+        [1.5, 3.0, 0.0, 4.0, 3.5, 5.5, 1.8, 4.5, 3.5, 5.0], # 2 Vila Paulista
+        [3.0, 5.0, 4.0, 0.0, 2.5, 2.0, 3.8, 1.5, 6.0, 1.8], # 3 Itagaçaba
+        [2.0, 4.0, 3.5, 2.5, 0.0, 3.5, 2.5, 2.0, 5.0, 3.0], # 4 Jd América
+        [4.5, 6.5, 5.5, 2.0, 3.5, 0.0, 5.0, 3.0, 7.5, 2.5], # 5 Retiro
+        [1.0, 3.2, 1.8, 3.8, 2.5, 5.0, 0.0, 4.0, 3.0, 4.5], # 6 Vila Suíça
+        [3.5, 5.5, 4.5, 1.5, 2.0, 3.0, 4.0, 0.0, 6.5, 1.0], # 7 Nova Cruzeiro
+        [2.8, 1.5, 3.5, 6.0, 5.0, 7.5, 3.0, 6.5, 0.0, 7.0], # 8 Vila Canevari
+        [4.0, 6.0, 5.0, 1.8, 3.0, 2.5, 4.5, 1.0, 7.0, 0.0]  # 9 Jd Paraíso
+    ]
+    
+    pontos_rota = [0] + destinos_selecionados
+    n_real = len(pontos_rota)
+    
+    if n_real <= 1:
+        return jsonify({"erro": "Selecione pelo menos um bairro para entrega."})
+    
+    m_recortada = [[0] * n_real for _ in range(n_real)]
+    for i in range(n_real):
+        for j in range(n_real):
+            m_recortada[i][j] = matriz_cruzeiro[pontos_rota[i]][pontos_rota[j]]
+            
+    
+    def avalia_tsp(sol, m):
+        soma = 0
+        for i in range(len(sol) - 1):
+            soma += m[sol[i]][sol[i+1]]
+        soma += m[sol[-1]][sol[0]] 
+        return soma
+
+    
+    si = list(range(n_real))
+    vi = avalia_tsp(si, m_recortada)
+    
+    sf, cf = [], 0
+    if metodo == 'hill':
+        sf, cf, _ = metodo_subida_encosta(si, vi, n_real, m_recortada)
+    elif metodo == 'hillRestart':
+        sf, cf, _ = metodo_subida_tentativas(si, vi, n_real, m_recortada, tmax)
+    else: 
+        sf, cf, _ = metodo_tempera_simulada(si, vi, n_real, m_recortada, ti, tf, fr)
+    
+   
+    cf = avalia_tsp(sf, m_recortada)
+    
+    rota_nomes = [bairros[pontos_rota[idx]] for idx in sf]
+    rota_nomes.append(bairros[0]) 
+    
+    return jsonify({
+        "rota_bairros": rota_nomes,
+        "distancia_km": round(cf, 2)
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
