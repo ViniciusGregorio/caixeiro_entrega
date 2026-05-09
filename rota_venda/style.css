@@ -1,134 +1,97 @@
 body{
-
 margin:0;
 font-family:Segoe UI;
-
 background:#0f172a;
 color:#e2e8f0;
-
 display:flex;
 height:100vh;
-
 }
-
 
 .sidebar{
-
 width:230px;
 background:#020617;
-
 padding:20px;
-
 border-right:1px solid #1e293b;
-
 }
-
 
 .sidebar h2{
-
 text-align:center;
 color:#38bdf8;
-
 }
-
 
 .sidebar button{
 
 width:100%;
 margin-top:10px;
 padding:12px;
-
 background:#020617;
-
 border:1px solid #1e293b;
 color:#e2e8f0;
-
 cursor:pointer;
-
 }
-
 
 .sidebar button:hover{
-
 background:#1e293b;
-
 }
 
+input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #020617; 
+    border-color: #0f172a;
+}
 
 .main{
-
 flex:1;
 padding:30px;
-
 overflow:auto;
-
 }
-
 
 .screen{
-
 display:none;
-
 }
-
 
 .screen.active{
-
 display:block;
-
 }
-
 
 .panel{
-
 background:#020617;
-
 border:1px solid #1e293b;
-
 padding:20px;
 margin-bottom:20px;
-
 border-radius:8px;
-
 }
-
 
 input,select{
-
 margin-top:5px;
 margin-bottom:10px;
-
 padding:6px;
-
 width:200px;
-
 background:#0f172a;
-
 color:white;
-
 border:1px solid #1e293b;
-
 }
 
-
 button{
-
 padding:10px 15px;
 cursor:pointer;
 
 }
 
+pre {
+    background: black;
+    color: #38bdf8;
+    padding: 15px;
+    height: 400px;
+    font-size: 16px;
+    overflow: auto;
+    white-space: pre-wrap; 
+}
 
-pre{
-
-background:black;
-
-color:#22c55e;
-
-padding:15px;
-
-height:150px;
-
-overflow:auto;
-
+input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #020617; 
+    border-color: #0f172a;
 }
