@@ -102,7 +102,7 @@ async function executarBasico(){
         fr: fr
     };
     
-    document.getElementById("saidaBasico").textContent += "\n\nProcessando otimização no Python...";
+    document.getElementById("saidaBasico").textContent += "\n\nProcessando...";
     
     try {
         let response = await fetch('http://127.0.0.1:5000/executar_basico', {

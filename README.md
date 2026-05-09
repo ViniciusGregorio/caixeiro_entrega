@@ -68,6 +68,10 @@ O sistema utiliza três métodos principais de melhoria para encontrar a rota id
 
    Basta abrir o ficheiro index.html em qualquer navegador
 
+   obs: se o mapa iterativo apresentar erro, basta iniciar um servidor web para o Front-end:
+   python -m http.server 8000 
+   ou instalar a extensão "live server" e iniciar o index com ela
+
 ## Contexto Académico
 
 **Disciplina: Programação Linear**
