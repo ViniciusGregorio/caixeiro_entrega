@@ -198,7 +198,7 @@ function mostrarGrafico(dados){
         data:{
             labels:dados.map((_,i)=>i),
             datasets:[{
-                label: "Evolução do Fitness",
+                label: "Evolução do Custo",
                 data:dados,
                 borderColor: "#38bdf8",
                 backgroundColor: "rgba(56, 189, 248, 0.1)",
@@ -230,6 +230,8 @@ function initMapa() {
     }
     
     mapaDelivery = L.map('mapaDelivery').setView([-22.5761, -44.9631], 14);
+    
+    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(mapaDelivery);
@@ -253,7 +255,6 @@ function initMapa() {
         }
     });
 }
-
 
 function limparTermoBusca(termo) {
     return termo.replace(/^(rua|r\.|avenida|av\.|travessa|tv\.|praça|praca|pça|alameda|al\.|rodovia|rod\.|viela)\s+/i, '').trim();
@@ -304,7 +305,6 @@ async function sugerirEnderecos() {
                         adicionarPontoNoMapa(lat, lng, item.name || div.textContent);
                         mapaDelivery.setView([lat, lng], 16);
                     };
-                    
                     lista.appendChild(div);
                 });
             } else {
@@ -320,9 +320,8 @@ async function buscarEndereco() {
     let query = document.getElementById('buscaEndereco').value;
     if(query.trim() === "") return;
 
-    let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui também
+    let termoLimpo = limparTermoBusca(query); 
     let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
-    
     document.getElementById('buscaEndereco').value = "A pesquisar...";
 
     try {
@@ -350,18 +349,16 @@ function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
     let id_ponto = coordenadas.length;
     let cor = id_ponto === 0 ? '#ef4444' : '#3b82f6';
     let titulo = id_ponto === 0 ? "PONTO INICIAL" : `📦 ${id_ponto}`;
-    
     let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeRuaBase})` : `${titulo} - ${nomeRuaBase}`;
     
-
     coordenadas.push({lat: lat, lng: lng, nome: nomeFinal, ruaBase: nomeRuaBase});
 
     let marcador = L.circleMarker([lat, lng], {
         color: 'black', fillColor: cor, fillOpacity: 1, radius: 9
     }).addTo(mapaDelivery);
-
     marcador.bindTooltip(nomeFinal, {permanent: true, direction: 'top', offset: [0, -10]}).openTooltip();
 
+    
     let popupContent = `
         <div style="text-align: center; color: black; font-family: sans-serif;">
             <b style="font-size: 14px; display: block; margin-bottom: 10px;">${nomeFinal}</b>
@@ -372,6 +369,7 @@ function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
 
     marcadores.push(marcador);
 }
+
 
 window.removerPonto = function(index) {
     coordenadas.splice(index, 1);
@@ -388,7 +386,7 @@ window.removerPonto = function(index) {
     });
     
     let saidaDelivery = document.getElementById("saidaDelivery");
-    saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido! Se uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
+    saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido!\nSe uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
     saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
     
     mapaDelivery.closePopup();
@@ -399,7 +397,7 @@ function limparMapa() {
     marcadores.forEach(m => mapaDelivery.removeLayer(m));
     marcadores = [];
     if (linhaRota) mapaDelivery.removeLayer(linhaRota);
-    document.getElementById("saidaDelivery").textContent = "Mapa limpo!.";
+    document.getElementById("saidaDelivery").textContent = "Mapa limpo!";
 }
 
 document.addEventListener('click', function(event) {
@@ -424,9 +422,9 @@ async function calcularDeliveryMapa() {
         tf: parseFloat(document.getElementById("tfReal").value),
         fr: parseFloat(document.getElementById("frReal").value)
     };
-
+    
     let saidaDelivery = document.getElementById("saidaDelivery");
-    saidaDelivery.textContent += "\n\n Calculando distâncias...";
+    saidaDelivery.textContent += "\n\n Calculando distâncias reais e otimizando ...";
 
     try {
         let response = await fetch('http://127.0.0.1:5000/calcular_delivery_mapa', {
@@ -434,7 +432,6 @@ async function calcularDeliveryMapa() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
-        
         let data = await response.json();
 
         if (data.erro) {
@@ -443,8 +440,25 @@ async function calcularDeliveryMapa() {
         }
 
         if (linhaRota) mapaDelivery.removeLayer(linhaRota);
-        let pontosDaRota = data.ordem_indices.map(idx => [coordenadas[idx].lat, coordenadas[idx].lng]);
-        linhaRota = L.polyline(pontosDaRota, {color: '#ef4444', weight: 4, dashArray: '10, 10'}).addTo(mapaDelivery);
+        saidaDelivery.textContent += "\n Buscando ruas no OSRM...";
+
+        
+        try {
+            let coordsOrdenadasStr = data.ordem_indices.map(idx => `${coordenadas[idx].lng},${coordenadas[idx].lat}`).join(';');
+            let routeResponse = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordsOrdenadasStr}?overview=full&geometries=geojson`);
+            let routeData = await routeResponse.json();
+
+            if (routeData.code === 'Ok') {
+                let pontosDaRua = routeData.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                linhaRota = L.polyline(pontosDaRua, {color: '#3b82f6', weight: 5, opacity: 0.8}).addTo(mapaDelivery);
+            } else {
+                throw new Error("OSRM não encontrou a rota das ruas.");
+            }
+        } catch(err) {
+          
+            let pontosDaRota = data.ordem_indices.map(idx => [coordenadas[idx].lat, coordenadas[idx].lng]);
+            linhaRota = L.polyline(pontosDaRota, {color: '#ef4444', weight: 4, dashArray: '10, 10'}).addTo(mapaDelivery);
+        }
 
         let preco = parseFloat(document.getElementById("precoGasolina").value);
         let consumo = parseFloat(document.getElementById("consumoMoto").value);
@@ -454,9 +468,9 @@ async function calcularDeliveryMapa() {
 
         let res = "\n==================================";
         res += "\nMÉTODO: " + (data.metodo_usado.toUpperCase());
-        res += "\n ROTA OTIMIZADA:\n" + txtRota;
+        res += "\n📍 ROTA OTIMIZADA:\n" + txtRota;
         res += "\n----------------------------------";
-        res += "\n TOTAL: " + data.distancia_km + " km   |   CUSTO: R$ " + custo.toFixed(2);
+        res += "\n🛣️ TOTAL: " + data.distancia_km + " km   |   ⛽ CUSTO: R$ " + custo.toFixed(2);
         res += "\n==================================";
 
         saidaDelivery.textContent += res;

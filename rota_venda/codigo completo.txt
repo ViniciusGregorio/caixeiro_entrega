@@ -428,6 +428,7 @@ if __name__ == '__main__':
 --------------------------------------------------------------------------------------------------------------
 
     app.js:
+
  let matrizProblema = [];
 let solucaoAtual = [];
 let custoAtual = 0;
@@ -628,7 +629,7 @@ function mostrarGrafico(dados){
         data:{
             labels:dados.map((_,i)=>i),
             datasets:[{
-                label: "Evolução do Fitness",
+                label: "Evolução do Custo",
                 data:dados,
                 borderColor: "#38bdf8",
                 backgroundColor: "rgba(56, 189, 248, 0.1)",
