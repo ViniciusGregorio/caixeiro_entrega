@@ -73,29 +73,44 @@
 
     <div id="genetico" class="screen">
         <h1>Algoritmo Genético</h1>
-        <div class="panel">
-            <label>Tamanho do problema</label>
-            <input id="agTam" type="number" value="20">
-            <button onclick="gerarProblemaAG()">Gerar Problema</button>
+        <div class="panel" style="border-left: 4px solid #38bdf8;">
+            <p><strong>Aviso:</strong> O Algoritmo Genético resolverá o problema atualmente carregado na aba "Algoritmo Básico". Gere a matriz lá primeiro!</p>
         </div>
 
         <div class="panel">
-            <label>Tamanho população</label>
-            <input id="pop" type="number" value="30">
-            <label>Taxa mutação</label>
-            <input id="mut" type="number" step="0.01" value="0.05">
-            <label>Taxa cruzamento</label>
-            <input id="cross" type="number" step="0.01" value="0.8">
-            <label>Número gerações</label>
-            <input id="gens" type="number" value="50">
-            <button onclick="executarAG()">Executar AG</button>
+            <label>Tamanho da População:</label>
+            <input id="ag_pop" type="number" value="50">
+
+            <label>Número de Gerações:</label>
+            <input id="ag_gens" type="number" value="100">
+
+            <label>Taxa de Mutação (0 a 1):</label>
+            <input id="ag_mut" type="number" step="0.01" value="0.05">
+
+            <label>Taxa de Cruzamento (0 a 1):</label>
+            <input id="ag_cross" type="number" step="0.01" value="0.8">
+
+            <label>Método de Seleção:</label>
+            <select id="ag_selecao" style="width: 100%;">
+                <option value="roleta">Roleta (Proporcional ao Fitness)</option>
+                <option value="torneio">Torneio (Disputa de k-Indivíduos)</option>
+            </select>
+
+            <label style="display: flex; align-items: center; gap: 10px; margin-top: 15px; font-weight: bold; cursor: pointer;">
+                <input type="checkbox" id="ag_elitismo" checked style="width: 20px; height: 20px;">
+                Ativar Elitismo (Manter o melhor da geração)
+            </label>
+
+            <button onclick="chamarAG()" style="margin-top: 20px; width: 100%;">Executar Evolução</button>
         </div>
 
         <div class="panel">
+            <h3>Evolução do Custo (Distância)</h3>
             <canvas id="grafico"></canvas>
         </div>
 
         <div class="panel">
+            <h3>Resultado Final:</h3>
             <pre id="saidaAG"></pre>
         </div>
     </div>

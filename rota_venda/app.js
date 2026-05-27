@@ -140,60 +140,51 @@ async function executarBasico(){
     }
 }
 
-function gerarProblemaAG(){
-    let n=parseInt(document.getElementById("agTam").value);
-    problemaAG=[];
-    
-    for(let i=0;i<n;i++){
-        problemaAG.push(Math.random());
+
+async function chamarAG() {
+    if (matrizProblema.length === 0) {
+        alert("Volte na aba 'Algoritmo Básico' e gere a Matriz do Problema primeiro!");
+        return;
     }
-    
-    document.getElementById("saidaAG").textContent= "Problema AG gerado tamanho "+n;
-}
 
-function fitness(ind){
-    let soma=0;
-    for(let g of ind){
-        soma+=g;
-    }
-    return soma;
-}
+    let payload = {
+        tamanho: matrizProblema.length,
+        matriz: matrizProblema,
+        tamanho_pop: parseInt(document.getElementById("ag_pop").value),
+        geracoes: parseInt(document.getElementById("ag_gens").value),
+        taxa_mutacao: parseFloat(document.getElementById("ag_mut").value),
+        taxa_cruzamento: parseFloat(document.getElementById("ag_cross").value),
+        metodo_selecao: document.getElementById("ag_selecao").value,
+        elitismo: document.getElementById("ag_elitismo").checked
+    };
 
-function executarAG(){
-    let popSize=parseInt(document.getElementById("pop").value);
-    let gens=parseInt(document.getElementById("gens").value);
-    let mut=parseFloat(document.getElementById("mut").value);
+    document.getElementById("saidaAG").textContent = "🧬 Cruzando gerações e evoluindo população...\nAguarde alguns instantes.";
 
-    let populacao=[];
-    for(let i=0;i<popSize;i++){
-        let ind=[];
-        for(let j=0;j<problemaAG.length;j++){
-            ind.push(Math.random());
+    try {
+        let response = await fetch('http://127.0.0.1:5000/executar_ag', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        let data = await response.json();
+
+        if(data.erro) {
+            document.getElementById("saidaAG").textContent = "❌ [ERRO]: " + data.erro;
+            return;
         }
-        populacao.push(ind);
-    }
 
-    let melhores=[];
-    for(let g=0;g<gens;g++){
-        populacao.sort((a,b)=>fitness(b)-fitness(a));
-        melhores.push(fitness(populacao[0]));
-        for(let i=popSize/2;i<popSize;i++){
-            let pai=populacao[Math.floor(Math.random()*popSize/2)];
-            let mae=populacao[Math.floor(Math.random()*popSize/2)];
-            let filho=[];
-            for(let j=0;j<pai.length;j++){
-                let gene=Math.random()<0.5 ? pai[j] : mae[j];
-                if(Math.random()<mut){
-                    gene=Math.random();
-                }
-                filho.push(gene);
-            }
-            populacao[i]=filho;
-        }
-    }
+        document.getElementById("saidaAG").textContent = 
+            "=== RESULTADO ALGORITMO GENÉTICO ===\n\n" +
+            "📍 Melhor Rota Evoluída: [" + data.melhor_rota.join(", ") + "]\n" +
+            "🛣️ Custo (Distância): " + data.melhor_custo;
 
-    mostrarGrafico(melhores);
-    document.getElementById("saidaAG").textContent= "Melhor fitness final: "+melhores[melhores.length-1];
+        // O Chart.js agora vai desenhar uma curva DESCENDENTE (minimizando o custo!)
+        mostrarGrafico(data.historico_custos);
+
+    } catch (e) {
+        document.getElementById("saidaAG").textContent = "Erro na conexão com a API do Genético.";
+    }
 }
 
 let chartInstance = null;
@@ -218,7 +209,7 @@ function mostrarGrafico(dados){
 }
 
 
-// MODO DELIVERY (Leaflet + OSRM + Nominatim)
+// MODO DELIVERY - Leaflet + OSRM + Nominatim
 
 let mapaDelivery = null;
 let coordenadas = []; 
@@ -362,7 +353,7 @@ function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
     
     let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeRuaBase})` : `${titulo} - ${nomeRuaBase}`;
     
-    // Guardamos o 'nomeRuaBase' para recriar o ponto com o texto certo se algum outro for apagado
+
     coordenadas.push({lat: lat, lng: lng, nome: nomeFinal, ruaBase: nomeRuaBase});
 
     let marcador = L.circleMarker([lat, lng], {
@@ -371,7 +362,6 @@ function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
 
     marcador.bindTooltip(nomeFinal, {permanent: true, direction: 'top', offset: [0, -10]}).openTooltip();
 
-    // NOVIDADE: Adiciona o Popup com o botão de excluir
     let popupContent = `
         <div style="text-align: center; color: black; font-family: sans-serif;">
             <b style="font-size: 14px; display: block; margin-bottom: 10px;">${nomeFinal}</b>

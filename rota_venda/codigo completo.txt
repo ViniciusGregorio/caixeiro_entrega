@@ -1,0 +1,1215 @@
+app.py: 
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import random
+import math
+import requests
+
+app = Flask(__name__)
+CORS(app)
+
+def avalia(sol, n, m):
+    soma = 0
+    for i in range(len(sol) - 1):
+        origem = sol[i]
+        destino = sol[i+1]
+        soma += m[origem][destino]
+    
+    soma += m[sol[-1]][sol[0]] 
+    return soma
+
+def sucessor_pcv(atual, va, n, m):
+    melhor = atual.copy()
+    vm = va
+    
+  
+    for i in range(n - 1):
+        for j in range(i + 1, n):
+            suc = atual.copy()
+          
+            suc[i], suc[j] = suc[j], suc[i]
+            
+            vs = avalia(suc, n, m)
+            
+        
+            if vs < vm:
+                melhor = suc.copy()
+                vm = vs
+                
+    return melhor, vm
+
+def gera_vizinho_aleatorio(atual, n):
+    novo = atual.copy()
+    p1 = random.randint(0, n - 1)
+    p2 = random.randint(0, n - 1)
+    while p1 == p2:
+        p2 = random.randint(0, n - 1)
+    x = novo[p1]
+    novo[p1] = novo[p2]
+    novo[p2] = x
+    return novo
+
+def metodo_subida_encosta(si, vi, n, m):
+    atual = si.copy()
+    va = vi
+    historico = []
+    
+    while True:
+        novo, vn = sucessor_pcv(atual, va, n, m)
+        if vn < va:
+            atual = novo.copy()
+            va = vn
+            historico.append({"rota": atual.copy(), "custo": va})
+        else:
+            return atual, va, historico
+
+def metodo_subida_tentativas(si, vi, n, m, tmax):
+    melhor_global = si.copy()
+    va_global = vi
+    historico = []
+    
+    tentativas_sem_melhoria = 0
+    total_tentativas = 0
+    
+    while tentativas_sem_melhoria < tmax:
+        if total_tentativas == 0:
+            atual_start = si.copy() 
+        else:
+            atual_start = list(range(n))
+            random.shuffle(atual_start) 
+            
+        va_start = avalia(atual_start, n, m)
+        sol_local, custo_local, _ = metodo_subida_encosta(atual_start, va_start, n, m)
+        
+        total_tentativas += 1
+        
+        if custo_local < va_global:
+            melhor_global = sol_local.copy()
+            va_global = custo_local
+            historico.append({"rota": melhor_global.copy(), "custo": va_global, "obs": f"Tentativa {total_tentativas} (Zerou TMAX)"})
+            
+            tentativas_sem_melhoria = 0 
+        else:
+            tentativas_sem_melhoria += 1
+            
+    return melhor_global, va_global, historico
+
+def metodo_tempera_simulada(si, vi, n, m, ti, tf, fr):
+    atual = si.copy()
+    va = vi
+    melhor_global = atual.copy()
+    va_global = va
+    historico = []
+    
+    temperatura = ti
+    iteracoes_por_temperatura = n * 10
+    
+    while temperatura > tf:
+        for i in range(iteracoes_por_temperatura):
+            novo = gera_vizinho_aleatorio(atual, n)
+            vn = avalia(novo, n, m)
+            delta = vn - va
+            
+            if delta < 0:
+                atual = novo.copy()
+                va = vn
+                if va < va_global:
+                    melhor_global = atual.copy()
+                    va_global = va
+                    historico.append({"rota": melhor_global.copy(), "custo": va_global, "obs": f"Temp: {temperatura:.2f}"})
+            else:
+                probabilidade = math.exp(-delta / temperatura)
+                if random.random() < probabilidade:
+                    atual = novo.copy()
+                    va = vn
+        temperatura = temperatura * fr
+        
+    return melhor_global, va_global, historico
+
+def executar_analise_comparativa(si, vi, n, m):
+    resultados = []
+    resultados.append(f"--- ANÁLISE COMPARATIVA DE GANHO ---")
+    resultados.append(f"Custo Inicial (Solução de Partida): {vi}\n")
+
+    def calcular_ganho(custo_final):
+        ganho_abs = vi - custo_final
+        ganho_perc = (ganho_abs / vi) * 100 if vi > 0 else 0
+        return f"Ganho: {ganho_abs:.2f} ({ganho_perc:.2f}%)"
+
+    # 1. Subida de Encosta 
+    _, c_se, _ = metodo_subida_encosta(si, vi, n, m)
+    resultados.append(f"[SE] Subida de Encosta Padrão:\n -> Melhor Custo = {c_se} | {calcular_ganho(c_se)}\n")
+    
+    # 2. Subida de Encosta com Tentativas (SET)
+    tmax_vals = [n, max(1, int(n/2)), max(1, int(n/4))]
+    for t in tmax_vals:
+        _, c_set, _ = metodo_subida_tentativas(si, vi, n, m, t)
+        resultados.append(f"[SET] Tentativas (TMAX={t}):\n -> Melhor Custo = {c_set} | {calcular_ganho(c_set)}")
+    resultados.append("") 
+        
+    # 3. Têmpera Simulada (TE)
+    configs_te = [
+        (100, 0.1, 0.8), (200, 0.1, 0.8), (500, 0.1, 0.8),
+        (200, 0.1, 0.9), (500, 0.1, 0.9),
+        (200, 0.01, 0.9), (500, 0.01, 0.9)
+    ]
+    for ti, tf, fr in configs_te:
+        _, c_te, _ = metodo_tempera_simulada(si, vi, n, m, ti, tf, fr)
+        resultados.append(f"[TE] Têmpera (TI={ti}, TF={tf}, FR={fr}):\n -> Melhor Custo = {c_te} | {calcular_ganho(c_te)}")
+        
+    return "\n".join(resultados)
+
+@app.route('/gerar_problema_pcv', methods=['POST'])
+def gerar_problema_pcv():
+    dados = request.json
+    n = dados.get('tamanho', 10)
+    tipo_execucao = dados.get('tipo', 'random')
+    str_inicial = dados.get('inicial', '')
+    
+    solucao_inicial = []
+    
+    if tipo_execucao == 'fixed' and str_inicial != '':
+        partes = str_inicial.split(',')
+        for p in partes:
+            if p.strip() != '': 
+                try:
+                    solucao_inicial.append(int(p.strip()))
+                except ValueError:
+                    return jsonify({"erro": "Entrada inválida. Digite apenas números separados por vírgula."})
+        
+        if len(solucao_inicial) != n:
+            return jsonify({"erro": f"Você escolheu Tamanho {n}, mas digitou {len(solucao_inicial)} números. A quantidade deve ser exata."})
+            
+        for val in solucao_inicial:
+            if val < 0 or val >= n:
+                return jsonify({"erro": f"Número inválido detectado: {val}.\nPara um problema de tamanho {n}, os números válidos são de 0 até {n-1}."})
+                
+        if len(set(solucao_inicial)) != len(solucao_inicial):
+            return jsonify({"erro": "A solução inicial não pode conter números repetidos!"})
+    else:
+        solucao_inicial = list(range(n))
+        random.shuffle(solucao_inicial)
+    
+    m = [[0] * n for i in range(n)]
+    for i in range(n):
+        for j in range(n):
+            if i != j:
+                m[i][j] = random.randint(1, 20) 
+            else:
+                m[i][j] = 0
+                
+    return jsonify({
+        "matriz": m,
+        "solucao_inicial": solucao_inicial,
+        "custo_inicial": avalia(solucao_inicial, n, m)
+    })
+
+@app.route('/executar_basico', methods=['POST'])
+def executar_basico():
+    dados = request.json
+    metodo = dados.get('metodo')
+    matriz = dados.get('matriz')
+    si = dados.get('solucao_inicial')
+    n = len(si)
+    vi = avalia(si, n, matriz)
+    
+    tmax = dados.get('tmax', 5)
+    ti = dados.get('ti', 100)
+    tf = dados.get('tf', 0.1)
+    fr = dados.get('fr', 0.8)
+    
+    sf, cf, historico, parametros = [], 0, [], ""
+    resultado_comparativo = ""
+    
+    if metodo == 'encosta':
+        sf, cf, historico = metodo_subida_encosta(si, vi, n, matriz)
+        nome_metodo = "Subida de Encosta"
+        parametros = "Padrão"
+    elif metodo == 'tentativas':
+        sf, cf, historico = metodo_subida_tentativas(si, vi, n, matriz, tmax)
+        nome_metodo = "Subida de Encosta com Tentativas"
+        parametros = f"TMAX = {tmax}"
+    elif metodo == 'tempera':
+        sf, cf, historico = metodo_tempera_simulada(si, vi, n, matriz, ti, tf, fr)
+        nome_metodo = "Têmpera Simulada"
+        parametros = f"TI = {ti}, TF = {tf}, FR = {fr}"
+    elif metodo == 'comparativa':
+        resultado_comparativo = executar_analise_comparativa(si, vi, n, matriz)
+        nome_metodo = "Análise Comparativa (Tabela 1 do PDF)"
+        return jsonify({"metodo": metodo, "resultado_comparativo": resultado_comparativo})
+        
+    return jsonify({
+        "nome_metodo": nome_metodo,
+        "parametros": parametros,
+        "historico": historico,
+        "solucao_final": sf,
+        "custo_final": cf
+    })
+
+
+
+# ALGORITMO GENÉTICO
+
+def fitness_pcv(sol, n, m):
+    custo = avalia(sol, n, m)
+    if custo == 0:
+        return 99999 
+    return 1.0 / custo
+
+def selecao_roleta(populacao, fitness_pop):
+    soma_fit = sum(fitness_pop)
+    r = random.uniform(0, soma_fit)
+    soma_parcial = 0
+    for i, fit in enumerate(fitness_pop):
+        soma_parcial += fit
+        if soma_parcial >= r:
+            return populacao[i]
+    return populacao[-1]
+
+def selecao_torneio(populacao, fitness_pop, k=3):
+    selecionados = random.sample(list(zip(populacao, fitness_pop)), k)
+    melhor = max(selecionados, key=lambda x: x[1])
+    return melhor[0]
+
+def cruzamento_ox(pai1, pai2, n):
+    filho = [-1] * n
+    a, b = sorted(random.sample(range(n), 2))
+    filho[a:b+1] = pai1[a:b+1] 
+    
+    p2_filtrado = [x for x in pai2 if x not in filho] 
+    idx = 0
+    for i in range(n):
+        if filho[i] == -1:
+            filho[i] = p2_filtrado[idx]
+            idx += 1
+    return filho
+
+def mutacao_swap(ind, taxa_mutacao, n):
+    if random.random() < taxa_mutacao:
+        a, b = random.sample(range(n), 2)
+        ind[a], ind[b] = ind[b], ind[a]
+    return ind
+
+@app.route('/executar_ag', methods=['POST'])
+def executar_ag_rota():
+    dados = request.json
+    n = dados.get('tamanho')
+    m = dados.get('matriz')
+    tamanho_pop = dados.get('tamanho_pop', 50)
+    geracoes = dados.get('geracoes', 100)
+    taxa_mutacao = dados.get('taxa_mutacao', 0.05)
+    taxa_cruzamento = dados.get('taxa_cruzamento', 0.8)
+    elitismo = dados.get('elitismo', True)
+    metodo_selecao = dados.get('metodo_selecao', 'roleta')
+
+    populacao = []
+    for _ in range(tamanho_pop):
+        ind = list(range(n))
+        random.shuffle(ind)
+        populacao.append(ind)
+
+    melhor_global = None
+    melhor_custo_global = float('inf')
+    historico_custos = []
+
+    for geracao in range(geracoes):
+        fitness_pop = [fitness_pcv(ind, n, m) for ind in populacao]
+        custos_pop = [avalia(ind, n, m) for ind in populacao]
+
+        melhor_idx = custos_pop.index(min(custos_pop))
+        if custos_pop[melhor_idx] < melhor_custo_global:
+            melhor_custo_global = custos_pop[melhor_idx]
+            melhor_global = populacao[melhor_idx].copy()
+
+        historico_custos.append(melhor_custo_global)
+
+        nova_populacao = []
+
+        if elitismo:
+            nova_populacao.append(melhor_global.copy())
+
+        while len(nova_populacao) < tamanho_pop:
+            if metodo_selecao == 'torneio':
+                pai1 = selecao_torneio(populacao, fitness_pop)
+                pai2 = selecao_torneio(populacao, fitness_pop)
+            else:
+                pai1 = selecao_roleta(populacao, fitness_pop)
+                pai2 = selecao_roleta(populacao, fitness_pop)
+
+            if random.random() < taxa_cruzamento:
+                filho = cruzamento_ox(pai1, pai2, n)
+            else:
+                filho = pai1.copy() if random.random() < 0.5 else pai2.copy()
+
+            filho = mutacao_swap(filho, taxa_mutacao, n)
+            nova_populacao.append(filho)
+
+        populacao = nova_populacao[:tamanho_pop]
+
+    return jsonify({
+        "melhor_rota": melhor_global,
+        "melhor_custo": melhor_custo_global,
+        "historico_custos": historico_custos
+    })
+
+
+#MODO DELIVERY COM MAPA
+
+@app.route('/calcular_delivery_mapa', methods=['POST'])
+def calcular_delivery_mapa():
+    dados = request.json
+    coords = dados.get('coordenadas', [])
+    metodo = dados.get('metodo', 'encosta')
+    
+    tmax = dados.get('tmax', 5)
+    ti = dados.get('ti', 100)
+    tf = dados.get('tf', 0.1)
+    fr = dados.get('fr', 0.8)
+    
+    n_real = len(coords)
+    if n_real < 2:
+        return jsonify({"erro": "Adicione pelo menos o Restaurante e um Cliente."})
+    if n_real > 50:
+        return jsonify({"erro": f"Limite máximo atingido. Selecionou {n_real} pontos, mas o máximo permitido é 50."})
+
+    
+    str_coords = ";".join([f"{c['lng']},{c['lat']}" for c in coords])
+    url_osrm = f"http://router.project-osrm.org/table/v1/driving/{str_coords}?annotations=distance"
+    
+    try:
+        resp = requests.get(url_osrm)
+        osrm_data = resp.json()
+        
+        if osrm_data.get('code') != 'Ok':
+            return jsonify({"erro": "Erro ao consultar as ruas no OSRM."})
+            
+        
+        matriz_metros = osrm_data['distances']
+        m_recortada = [[val / 1000.0 for val in linha] for linha in matriz_metros]
+        
+    except Exception as e:
+        return jsonify({"erro": f"Erro de conexão com o OSRM: {str(e)}"})
+
+
+    si = list(range(n_real))
+    vi = avalia(si, n_real, m_recortada)
+    
+    sf, cf = [], 0
+    if metodo == 'encosta':
+        sf, cf, _ = metodo_subida_encosta(si, vi, n_real, m_recortada)
+    elif metodo == 'tentativas':
+        sf, cf, _ = metodo_subida_tentativas(si, vi, n_real, m_recortada, tmax)
+    else: 
+        sf, cf, _ = metodo_tempera_simulada(si, vi, n_real, m_recortada, ti, tf, fr)
+    
+    cf = avalia(sf, n_real, m_recortada)
+    
+    idx_zero = sf.index(0)
+    sf_rotacionado = sf[idx_zero:] + sf[:idx_zero]
+    sf_rotacionado.append(0) 
+    
+    return jsonify({
+        "ordem_indices": sf_rotacionado,
+        "distancia_km": round(cf, 2),
+        "metodo_usado": metodo
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+
+    app.js:
+ let matrizProblema = [];
+let solucaoAtual = [];
+let custoAtual = 0;
+let problemaAG = [];
+
+document.addEventListener("DOMContentLoaded", () => {
+    let selectTipo = document.getElementById("tipoExecucao");
+    let inputSolucao = document.getElementById("solucaoInicial");
+
+    function checarInput() {
+        if (selectTipo.value === "random") {
+            inputSolucao.disabled = true;
+            inputSolucao.value = ""; 
+        } else {
+            inputSolucao.disabled = false;
+        }
+    }
+
+    checarInput();
+    selectTipo.addEventListener("change", checarInput);
+    toggleParametros(); 
+});
+
+function showScreen(id){
+    document.querySelectorAll(".screen").forEach(s=>{
+        s.classList.remove("active");
+    });
+    document.getElementById(id).classList.add("active");
+    
+    if(id === 'appReal') {
+        setTimeout(() => initMapa(), 100);
+    }
+}
+
+function toggleParametros() {
+    let metodo = document.getElementById("metodoBusca").value;
+    document.getElementById("paramsSET").style.display = (metodo === "tentativas") ? "block" : "none";
+    document.getElementById("paramsTE").style.display = (metodo === "tempera") ? "block" : "none";
+}
+
+async function gerarProblema(){
+    let n = parseInt(document.getElementById("tamProblema").value);
+    let tipo = document.getElementById("tipoExecucao").value;
+    let inicial = document.getElementById("solucaoInicial").value;
+    
+    try {
+        let response = await fetch('http://127.0.0.1:5000/gerar_problema_pcv', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ tamanho: n, tipo: tipo, inicial: inicial })
+        });
+        let data = await response.json();
+        
+        if (data.erro) {
+            document.getElementById("saidaBasico").textContent = " [ERRO DE VALIDAÇÃO]\n" + data.erro;
+            matrizProblema = []; 
+            return; 
+        }
+        
+        matrizProblema = data.matriz;
+        solucaoAtual = data.solucao_inicial;
+        custoAtual = data.custo_inicial;
+        
+        let matrizTexto = data.matriz.map(linha => linha.join("\t")).join("\n");
+        document.getElementById("saidaBasico").textContent = "=== MATRIZ DE ADJACÊNCIAS ===\n\n" + matrizTexto;
+            
+    } catch (error) {
+        document.getElementById("saidaBasico").textContent = "Erro de conexão! O arquivo app.py está rodando?";
+    }
+}
+
+function gerarSolucaoInicial() {
+    if (matrizProblema.length === 0) {
+        alert("Clique em 'Gerar Problema' primeiro!");
+        return;
+    }
+    document.getElementById("saidaBasico").textContent += 
+        "\n\n=== SOLUÇÃO INICIAL E AVALIAÇÃO ===" +
+        "\nRota Inicial: [" + solucaoAtual.join(", ") + "]" +
+        "\nCusto Inicial: " + custoAtual;
+}
+
+async function executarBasico(){
+    if (matrizProblema.length === 0) {
+        alert("Gere o problema primeiro!");
+        return;
+    }
+
+    let metodo = document.getElementById("metodoBusca").value;
+    let tmax = document.getElementById("tmax") ? parseInt(document.getElementById("tmax").value) : 5;
+    let ti = document.getElementById("ti") ? parseFloat(document.getElementById("ti").value) : 100;
+    let tf = document.getElementById("tf") ? parseFloat(document.getElementById("tf").value) : 0.1;
+    let fr = document.getElementById("fr") ? parseFloat(document.getElementById("fr").value) : 0.8;
+
+    let payload = {
+        metodo: metodo,
+        matriz: matrizProblema,
+        solucao_inicial: solucaoAtual,
+        tmax: tmax,
+        ti: ti,
+        tf: tf,
+        fr: fr
+    };
+    
+    document.getElementById("saidaBasico").textContent += "\n\nProcessando...";
+    
+    try {
+        let response = await fetch('http://127.0.0.1:5000/executar_basico', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        let data = await response.json();
+        
+        if(data.erro) {
+            document.getElementById("saidaBasico").textContent += "\n\n[ERRO]: " + data.erro;
+            return;
+        }
+        
+        let saida = "";
+        if (metodo === "comparativa") {
+            saida = "\n\n=== RESULTADO DA ANÁLISE COMPARATIVA ===\n\n" + data.resultado_comparativo;
+        } else {
+            saida = "\n\n=== RESULTADO DA EXECUÇÃO ===\n";
+            saida += "Método: " + data.nome_metodo + "\n";
+            saida += "Parâmetros Usados: " + data.parametros + "\n";
+            if (data.historico && data.historico.length > 0) {
+                saida += "\n--- Histórico de Soluções Aceitas ---\n";
+                data.historico.forEach((passo, index) => {
+                    saida += `Passo ${index + 1}: [${passo.rota.join(", ")}] | Custo: ${passo.custo} ${passo.obs ? '('+passo.obs+')' : ''}\n`;
+                });
+            }
+            saida += "\n>>> MELHOR ROTA FINAL: [" + data.solucao_final.join(", ") + "]";
+            saida += "\n>>> CUSTO FINAL: " + data.custo_final;
+        }
+
+        document.getElementById("saidaBasico").textContent += saida;
+    } catch (error) {
+        document.getElementById("saidaBasico").textContent += "\n\nErro na execução. O backend está rodando?";
+    }
+}
+
+
+async function chamarAG() {
+    if (matrizProblema.length === 0) {
+        alert("Volte na aba 'Algoritmo Básico' e gere a Matriz do Problema primeiro!");
+        return;
+    }
+
+    let payload = {
+        tamanho: matrizProblema.length,
+        matriz: matrizProblema,
+        tamanho_pop: parseInt(document.getElementById("ag_pop").value),
+        geracoes: parseInt(document.getElementById("ag_gens").value),
+        taxa_mutacao: parseFloat(document.getElementById("ag_mut").value),
+        taxa_cruzamento: parseFloat(document.getElementById("ag_cross").value),
+        metodo_selecao: document.getElementById("ag_selecao").value,
+        elitismo: document.getElementById("ag_elitismo").checked
+    };
+
+    document.getElementById("saidaAG").textContent = "🧬 Cruzando gerações e evoluindo população...\nAguarde alguns instantes.";
+
+    try {
+        let response = await fetch('http://127.0.0.1:5000/executar_ag', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        let data = await response.json();
+
+        if(data.erro) {
+            document.getElementById("saidaAG").textContent = "❌ [ERRO]: " + data.erro;
+            return;
+        }
+
+        document.getElementById("saidaAG").textContent = 
+            "=== RESULTADO ALGORITMO GENÉTICO ===\n\n" +
+            "📍 Melhor Rota Evoluída: [" + data.melhor_rota.join(", ") + "]\n" +
+            "🛣️ Custo (Distância): " + data.melhor_custo;
+
+        // O Chart.js agora vai desenhar uma curva DESCENDENTE (minimizando o custo!)
+        mostrarGrafico(data.historico_custos);
+
+    } catch (e) {
+        document.getElementById("saidaAG").textContent = "Erro na conexão com a API do Genético.";
+    }
+}
+
+let chartInstance = null;
+function mostrarGrafico(dados){
+    let ctx=document.getElementById("grafico");
+    if(chartInstance != null){
+        chartInstance.destroy();
+    }
+    chartInstance = new Chart(ctx,{
+        type:"line",
+        data:{
+            labels:dados.map((_,i)=>i),
+            datasets:[{
+                label: "Evolução do Fitness",
+                data:dados,
+                borderColor: "#38bdf8",
+                backgroundColor: "rgba(56, 189, 248, 0.1)",
+                tension: 0.1
+            }]
+        }
+    });
+}
+
+
+// MODO DELIVERY - Leaflet + OSRM + Nominatim
+
+let mapaDelivery = null;
+let coordenadas = []; 
+let marcadores = [];
+let linhaRota = null;
+let timeoutBusca = null;
+
+function toggleParametrosReal() {
+    let metodo = document.getElementById("metodoReal").value;
+    document.getElementById("paramsRealSET").style.display = (metodo === "tentativas") ? "block" : "none";
+    document.getElementById("paramsRealTE").style.display = (metodo === "tempera") ? "block" : "none";
+}
+
+function initMapa() {
+    if (mapaDelivery !== null) {
+        mapaDelivery.invalidateSize();
+        return;
+    }
+    
+    mapaDelivery = L.map('mapaDelivery').setView([-22.5761, -44.9631], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(mapaDelivery);
+
+    mapaDelivery.on('click', async function(e) {
+        let lat = e.latlng.lat;
+        let lng = e.latlng.lng;
+        
+        try {
+            let response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+            let data = await response.json();
+            
+            let nomeRua = data.address.road || "Rua não identificada";
+            let numero = data.address.house_number ? `, ${data.address.house_number}` : "";
+            let bairro = data.address.suburb ? ` - ${data.address.suburb}` : "";
+            
+            let nomeCompleto = `${nomeRua}${numero}${bairro}`;
+            adicionarPontoNoMapa(lat, lng, nomeCompleto);
+        } catch(err) {
+            adicionarPontoNoMapa(lat, lng, "Local desconhecido");
+        }
+    });
+}
+
+
+function limparTermoBusca(termo) {
+    return termo.replace(/^(rua|r\.|avenida|av\.|travessa|tv\.|praça|praca|pça|alameda|al\.|rodovia|rod\.|viela)\s+/i, '').trim();
+}
+
+async function sugerirEnderecos() {
+    let query = document.getElementById('buscaEndereco').value;
+    let lista = document.getElementById('listaSugestoes');
+    
+    if (query.trim().length < 4) {
+        lista.style.display = 'none';
+        return;
+    }
+
+    clearTimeout(timeoutBusca);
+    
+    timeoutBusca = setTimeout(async () => {
+        let termoLimpo = limparTermoBusca(query); 
+        let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
+        
+        try {
+            let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(pesquisa)}&limit=5`);
+            let data = await response.json();
+            
+            lista.innerHTML = ''; 
+            
+            if(data.length > 0) {
+                lista.style.display = 'block';
+                
+                data.forEach(item => {
+                    let div = document.createElement('div');
+                    div.textContent = item.display_name.split(', Cruzeiro')[0]; 
+                    div.style.padding = '10px';
+                    div.style.cursor = 'pointer';
+                    div.style.borderBottom = '1px solid #334155';
+                    div.style.color = '#e2e8f0';
+                    
+                    div.onmouseover = () => { div.style.background = '#38bdf8'; div.style.color = '#0f172a'; };
+                    div.onmouseout = () => { div.style.background = 'transparent'; div.style.color = '#e2e8f0'; };
+                    
+                    div.onclick = () => {
+                        document.getElementById('buscaEndereco').value = div.textContent;
+                        lista.style.display = 'none'; 
+                        
+                        let lat = parseFloat(item.lat);
+                        let lng = parseFloat(item.lon);
+                        
+                        adicionarPontoNoMapa(lat, lng, item.name || div.textContent);
+                        mapaDelivery.setView([lat, lng], 16);
+                    };
+                    
+                    lista.appendChild(div);
+                });
+            } else {
+                lista.style.display = 'none';
+            }
+        } catch(err) {
+            console.log("Erro no Autocomplete");
+        }
+    }, 600); 
+}
+
+async function buscarEndereco() {
+    let query = document.getElementById('buscaEndereco').value;
+    if(query.trim() === "") return;
+
+    let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui também
+    let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
+    
+    document.getElementById('buscaEndereco').value = "A pesquisar...";
+
+    try {
+        let response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(pesquisa)}`);
+        let data = await response.json();
+
+        if (data.length > 0) {
+            let lat = parseFloat(data[0].lat);
+            let lng = parseFloat(data[0].lon);
+            let nomeRua = data[0].name || query;
+            
+            adicionarPontoNoMapa(lat, lng, nomeRua);
+            mapaDelivery.setView([lat, lng], 16);
+        } else {
+            alert("Endereço não encontrado em Cruzeiro. Tente adicionar o nome do bairro.");
+        }
+    } catch(err) {
+        alert("Erro ao pesquisar endereço.");
+    }
+    
+    document.getElementById('buscaEndereco').value = "";
+}
+
+function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
+    let id_ponto = coordenadas.length;
+    let cor = id_ponto === 0 ? '#ef4444' : '#3b82f6';
+    let titulo = id_ponto === 0 ? "PONTO INICIAL" : `📦 ${id_ponto}`;
+    
+    let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeRuaBase})` : `${titulo} - ${nomeRuaBase}`;
+    
+
+    coordenadas.push({lat: lat, lng: lng, nome: nomeFinal, ruaBase: nomeRuaBase});
+
+    let marcador = L.circleMarker([lat, lng], {
+        color: 'black', fillColor: cor, fillOpacity: 1, radius: 9
+    }).addTo(mapaDelivery);
+
+    marcador.bindTooltip(nomeFinal, {permanent: true, direction: 'top', offset: [0, -10]}).openTooltip();
+
+    let popupContent = `
+        <div style="text-align: center; color: black; font-family: sans-serif;">
+            <b style="font-size: 14px; display: block; margin-bottom: 10px;">${nomeFinal}</b>
+            <button onclick="removerPonto(${id_ponto})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">🗑️ Excluir Ponto</button>
+        </div>
+    `;
+    marcador.bindPopup(popupContent);
+
+    marcadores.push(marcador);
+}
+
+window.removerPonto = function(index) {
+    coordenadas.splice(index, 1);
+    
+    marcadores.forEach(m => mapaDelivery.removeLayer(m));
+    marcadores = [];
+    if (linhaRota) mapaDelivery.removeLayer(linhaRota);
+    
+    let backupCoords = [...coordenadas];
+    coordenadas = [];
+    
+    backupCoords.forEach(ponto => {
+        adicionarPontoNoMapa(ponto.lat, ponto.lng, ponto.ruaBase);
+    });
+    
+    let saidaDelivery = document.getElementById("saidaDelivery");
+    saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido! Se uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
+    saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
+    
+    mapaDelivery.closePopup();
+};
+
+function limparMapa() {
+    coordenadas = [];
+    marcadores.forEach(m => mapaDelivery.removeLayer(m));
+    marcadores = [];
+    if (linhaRota) mapaDelivery.removeLayer(linhaRota);
+    document.getElementById("saidaDelivery").textContent = "Mapa limpo!.";
+}
+
+document.addEventListener('click', function(event) {
+    let input = document.getElementById('buscaEndereco');
+    let lista = document.getElementById('listaSugestoes');
+    if (event.target !== input && event.target !== lista) {
+        if(lista) lista.style.display = 'none';
+    }
+});
+
+async function calcularDeliveryMapa() {
+    if (coordenadas.length < 2) {
+        alert("Adicione ao menos 1 Restaurante (Ponto inicial) e 1 Cliente!");
+        return;
+    }
+
+    let payload = {
+        coordenadas: coordenadas.map(c => ({lat: c.lat, lng: c.lng})),
+        metodo: document.getElementById("metodoReal").value,
+        tmax: parseInt(document.getElementById("tmaxReal").value),
+        ti: parseFloat(document.getElementById("tiReal").value),
+        tf: parseFloat(document.getElementById("tfReal").value),
+        fr: parseFloat(document.getElementById("frReal").value)
+    };
+
+    let saidaDelivery = document.getElementById("saidaDelivery");
+    saidaDelivery.textContent += "\n\n Calculando distâncias...";
+
+    try {
+        let response = await fetch('http://127.0.0.1:5000/calcular_delivery_mapa', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        let data = await response.json();
+
+        if (data.erro) {
+            saidaDelivery.textContent += "\n[ERRO] " + data.erro;
+            return;
+        }
+
+        if (linhaRota) mapaDelivery.removeLayer(linhaRota);
+        let pontosDaRota = data.ordem_indices.map(idx => [coordenadas[idx].lat, coordenadas[idx].lng]);
+        linhaRota = L.polyline(pontosDaRota, {color: '#ef4444', weight: 4, dashArray: '10, 10'}).addTo(mapaDelivery);
+
+        let preco = parseFloat(document.getElementById("precoGasolina").value);
+        let consumo = parseFloat(document.getElementById("consumoMoto").value);
+        let custo = (data.distancia_km / consumo) * preco;
+
+        let txtRota = data.ordem_indices.map(idx => coordenadas[idx].nome).join("\n ➔ ");
+
+        let res = "\n==================================";
+        res += "\nMÉTODO: " + (data.metodo_usado.toUpperCase());
+        res += "\n ROTA OTIMIZADA:\n" + txtRota;
+        res += "\n----------------------------------";
+        res += "\n TOTAL: " + data.distancia_km + " km   |   CUSTO: R$ " + custo.toFixed(2);
+        res += "\n==================================";
+
+        saidaDelivery.textContent += res;
+        saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
+
+    } catch (e) {
+        saidaDelivery.textContent += "\nErro na conexão com a API ou Python.";
+    }
+}
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+
+index.html: 
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>PathFinder</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+
+<div class="sidebar">
+    <h2>PathFinder</h2>
+    <button onclick="showScreen('basico')">Algoritmo Básico</button>
+    <button onclick="alert('Módulo em desenvolvimento'); showScreen('genetico')">Algoritmo Genético</button>
+    <button onclick="showScreen('sobre')">Sobre o Sistema</button>
+    <button onclick="showScreen('appReal')">Delivery Real (Cruzeiro)</button>
+</div>
+
+<div class="main">
+
+    <div id="basico" class="screen active">
+        <h1>Algoritmos de Busca Local</h1>
+        
+        <div class="panel">
+            <label>Tipo de execução</label>
+            <select id="tipoExecucao">
+                <option value="random">Aleatório</option>
+                <option value="fixed">Fixo</option>
+            </select>
+
+            <label>Tamanho do problema</label>
+            <input id="tamProblema" type="number" value="5">
+
+            <label>Solução inicial</label>
+            <input id="solucaoInicial" type="text" placeholder="ex: 0,1,2,3,4">
+            
+            <br><br>
+            <button onclick="gerarProblema()">Gerar Problema</button>
+            <button onclick="gerarSolucaoInicial()">Solução Inicial</button>
+        </div>
+
+        <div class="panel">
+            <label>Método</label>
+            <select id="metodoBusca" onchange="toggleParametros()">
+                <option value="encosta">Subida de Encosta</option>
+                <option value="tentativas">Subida de Encosta com Tentativas</option>
+                <option value="tempera">Têmpera Simulada</option>
+                <option value="comparativa">Análise Comparativa</option>
+            </select>
+
+            <div id="paramsSET" style="display:none; margin-top: 10px;">
+                <label>TMAX:</label>
+                <input type="number" id="tmax" value="5" style="width: 80px;">
+            </div>
+
+            <div id="paramsTE" style="display:none; margin-top: 10px;">
+                <label>TI (Temp. Inicial):</label> <input type="number" id="ti" value="100" style="width: 70px;">
+                <label>TF (Temp. Final):</label> <input type="number" id="tf" value="0.1" step="0.1" style="width: 70px;">
+                <label>FR (Resfriamento):</label> <input type="number" id="fr" value="0.8" step="0.1" style="width: 70px;">
+            </div>
+
+            <button onclick="executarBasico()" style="margin-top: 15px;">Executar</button>
+        </div>
+
+        <div class="panel">
+            <h3>Área de saída</h3>
+            <pre id="saidaBasico"></pre>
+        </div>
+    </div>
+
+    <div id="genetico" class="screen">
+        <h1>Algoritmo Genético</h1>
+        <div class="panel" style="border-left: 4px solid #38bdf8;">
+            <p><strong>Aviso:</strong> O Algoritmo Genético resolverá o problema atualmente carregado na aba "Algoritmo Básico". Gere a matriz lá primeiro!</p>
+        </div>
+
+        <div class="panel">
+            <label>Tamanho da População:</label>
+            <input id="ag_pop" type="number" value="50">
+
+            <label>Número de Gerações:</label>
+            <input id="ag_gens" type="number" value="100">
+
+            <label>Taxa de Mutação (0 a 1):</label>
+            <input id="ag_mut" type="number" step="0.01" value="0.05">
+
+            <label>Taxa de Cruzamento (0 a 1):</label>
+            <input id="ag_cross" type="number" step="0.01" value="0.8">
+
+            <label>Método de Seleção:</label>
+            <select id="ag_selecao" style="width: 100%;">
+                <option value="roleta">Roleta (Proporcional ao Fitness)</option>
+                <option value="torneio">Torneio (Disputa de k-Indivíduos)</option>
+            </select>
+
+            <label style="display: flex; align-items: center; gap: 10px; margin-top: 15px; font-weight: bold; cursor: pointer;">
+                <input type="checkbox" id="ag_elitismo" checked style="width: 20px; height: 20px;">
+                Ativar Elitismo (Manter o melhor da geração)
+            </label>
+
+            <button onclick="chamarAG()" style="margin-top: 20px; width: 100%;">Executar Evolução</button>
+        </div>
+
+        <div class="panel">
+            <h3>Evolução do Custo (Distância)</h3>
+            <canvas id="grafico"></canvas>
+        </div>
+
+        <div class="panel">
+            <h3>Resultado Final:</h3>
+            <pre id="saidaAG"></pre>
+        </div>
+    </div>
+
+    <div id="sobre" class="screen">
+        <h1>Sobre o Sistema</h1>
+        
+        <p><strong>Descrição do Software:</strong></p>
+        <p>Sistema desenvolvido para a otimização de rotas focado em entregas de comida (Delivery) e vendedores ambulantes. Utilizando conceitos de Busca Local e o Problema do Caixeiro Viajante (PCV), o software calcula matematicamente a sequência ideal de paradas. O objetivo é minimizar a distância e o tempo gasto no trajeto, garantindo maior eficiência operacional na entrega dos pedidos a partir do restaurante.</p>
+        
+        <br>
+        <p><strong>Disciplina:</strong> Programação Linear</p>
+        <p><strong>Professor:</strong> Luis Fernando de Almeida</p>
+        
+        <br>
+        <p><strong>Discentes (Desenvolvedores):</strong></p>
+        <ul>
+            <li>Vinicius Gregorio</li>
+            <li>Robson Indalecio Barbosa Ribeiro</li>
+        </ul>
+
+        <br>
+        <p><strong>Algoritmos Estudados e Implementados:</strong></p>
+        <ul>
+            <li>Busca Local: Subida de Encosta </li>
+            <li>Busca Local: Subida de Encosta com Tentativas</li>
+            <li>Busca Local: Têmpera Simulada </li>
+            <li>Algoritmos Genéticos (Módulo Futuro)</li>
+        </ul>
+    </div>
+
+    <div id="appReal" class="screen">
+        <h1>Simulador de Delivery</h1>
+        
+        <div class="panel">
+            <p> <strong>Clique no mapa</strong> para adicionar locais ou utilize a pesquisa. O <span style="color:#ef4444; font-weight:bold;">1º ponto</span> será sempre o Restaurante (Ponto inicial).</p>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; position: relative;">
+                <input type="text" id="buscaEndereco" oninput="sugerirEnderecos()" placeholder="Ex: Rua Doutor Othon Barcellos" style="flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #38bdf8; background: #0f172a; color: white;">
+                <button onclick="buscarEndereco()" style="background: #38bdf8; color: black; font-weight: bold; border: none; padding: 10px 20px; border-radius: 5px;">🔍 Pesquisar</button>
+                
+                <div id="listaSugestoes" style="display: none; position: absolute; top: 100%; left: 0; right: 125px; background: #1e293b; border: 1px solid #38bdf8; border-radius: 5px; z-index: 1000; max-height: 250px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.5);"></div>
+            </div>
+
+            <div id="mapaDelivery" style="height: 450px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 2px solid #38bdf8; z-index: 1;"></div>
+            
+            <button onclick="limparMapa()" style="background: #ef4444; color: white; border: none; margin-bottom: 15px; width: 100%;">🗑️ Limpar Mapa</button>
+
+            <h3>Configuração do Algoritmo</h3>
+            <select id="metodoReal" onchange="toggleParametrosReal()" style="width: 100%; margin-bottom: 10px;">
+                <option value="encosta">Subida de Encosta</option>
+                <option value="tentativas">Subida de Encosta com Tentativas</option>
+                <option value="tempera">Têmpera Simulada</option>
+            </select>
+
+            <div id="paramsRealSET" style="display:none; margin-bottom: 10px;">
+                <label>TMAX:</label> <input type="number" id="tmaxReal" value="5" style="width: 60px;">
+            </div>
+
+            <div id="paramsRealTE" style="display:none; margin-bottom: 10px;">
+                <label>TI:</label> <input type="number" id="tiReal" value="100" style="width: 60px;">
+                <label>TF:</label> <input type="number" id="tfReal" value="0.1" step="0.01" style="width: 60px;">
+                <label>FR:</label> <input type="number" id="frReal" value="0.9" step="0.1" style="width: 60px;">
+            </div>
+
+            <div style="display: flex; gap: 10px; background: #0f172a; padding: 10px; border-radius: 5px;">
+                <label>Gasolina R$ <input type="number" id="precoGasolina" value="5.80" step="0.01" style="width: 70px;"></label>
+                <label>Consumo km/L <input type="number" id="consumoMoto" value="35" style="width: 50px;"></label>
+            </div>
+
+            <button onclick="calcularDeliveryMapa()" style="margin-top: 15px; width: 100%;">Calcular Rota Otimizada</button>
+        </div>
+
+        <div class="panel">
+            <h3>Itinerário e Custos:</h3>
+            <pre id="saidaDelivery" style="min-height: 150px; border-left: 4px solid #38bdf8; white-space: pre-wrap;"></pre>
+        </div>
+    </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
+
+
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------
+
+style.css:
+
+body{
+margin:0;
+font-family:Segoe UI;
+background:#0f172a;
+color:#e2e8f0;
+display:flex;
+height:100vh;
+}
+
+.sidebar{
+width:230px;
+background:#020617;
+padding:20px;
+border-right:1px solid #1e293b;
+}
+
+.sidebar h2{
+text-align:center;
+color:#38bdf8;
+}
+
+.sidebar button{
+
+width:100%;
+margin-top:10px;
+padding:12px;
+background:#020617;
+border:1px solid #1e293b;
+color:#e2e8f0;
+cursor:pointer;
+}
+
+.sidebar button:hover{
+background:#1e293b;
+}
+
+input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #020617; 
+    border-color: #0f172a;
+}
+
+.main{
+flex:1;
+padding:30px;
+overflow:auto;
+}
+
+.screen{
+display:none;
+}
+
+.screen.active{
+display:block;
+}
+
+.panel{
+background:#020617;
+border:1px solid #1e293b;
+padding:20px;
+margin-bottom:20px;
+border-radius:8px;
+}
+
+input,select{
+margin-top:5px;
+margin-bottom:10px;
+padding:6px;
+width:200px;
+background:#0f172a;
+color:white;
+border:1px solid #1e293b;
+}
+
+button{
+padding:10px 15px;
+cursor:pointer;
+
+}
+
+pre {
+    background: black;
+    color: #38bdf8;
+    padding: 15px;
+    height: 400px;
+    font-size: 16px;
+    overflow: auto;
+    white-space: pre-wrap; 
+}
+
+input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background-color: #020617; 
+    border-color: #0f172a;
+}
