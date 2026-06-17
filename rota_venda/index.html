@@ -7,14 +7,23 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
 <div class="sidebar">
-    <h2>PathFinder</h2>
+    <div class="sidebar-header">
+        <div class="logo">
+            <span class="logo-icon">🧭</span>
+            <span class="logo-text">PathFinder</span>
+        </div>
+        <span class="logo-subtext">Route Optimization</span>
+    </div>
     <button onclick="showScreen('basico')">Algoritmo Básico</button>
-    <button onclick="alert('Módulo em desenvolvimento'); showScreen('genetico')">Algoritmo Genético</button>
+    <button onclick="showScreen('genetico')">Algoritmo Genético</button>
     <button onclick="showScreen('sobre')">Sobre o Sistema</button>
     <button onclick="showScreen('appReal')">Delivery Real (Cruzeiro)</button>
 </div>
@@ -22,124 +31,237 @@
 <div class="main">
 
     <div id="basico" class="screen active">
-        <h1>Algoritmos de Busca Local</h1>
         
-        <div class="panel">
-            <label>Tipo de execução</label>
-            <select id="tipoExecucao">
-                <option value="random">Aleatório</option>
-                <option value="fixed">Fixo</option>
-            </select>
+        <div class="sobre-header">
+            <h1>🔍 Algoritmos de Busca Local</h1>
+            <p>Laboratório de Testes Matemáticos e Heurísticas</p>
+        </div>
 
-            <label>Tamanho do problema</label>
-            <input id="tamProblema" type="number" value="5">
-
-            <label>Solução inicial</label>
-            <input id="solucaoInicial" type="text" placeholder="ex: 0,1,2,3,4">
+        <div class="sobre-grid">
             
-            <br><br>
-            <button onclick="gerarProblema()">Gerar Problema</button>
-            <button onclick="gerarSolucaoInicial()">Solução Inicial</button>
-        </div>
+            <div class="sobre-card">
+                <h3>🎲 Configuração do Problema</h3>
+                
+                <div class="form-group">
+                    <label>Tipo de Execução</label>
+                    <select id="tipoExecucao" class="modern-input">
+                        <option value="random">Aleatório (Gerar Matriz)</option>
+                        <option value="fixed">Fixo (Inserir Manualmente)</option>
+                    </select>
+                </div>
 
-        <div class="panel">
-            <label>Método</label>
-            <select id="metodoBusca" onchange="toggleParametros()">
-                <option value="encosta">Subida de Encosta</option>
-                <option value="tentativas">Subida de Encosta com Tentativas</option>
-                <option value="tempera">Têmpera Simulada</option>
-                <option value="comparativa">Análise Comparativa</option>
-            </select>
+                <div class="form-group">
+                    <label>Tamanho do Problema (Nº de Cidades)</label>
+                    <input id="tamProblema" type="number" value="5" class="modern-input">
+                </div>
 
-            <div id="paramsSET" style="display:none; margin-top: 10px;">
-                <label>TMAX:</label>
-                <input type="number" id="tmax" value="5" style="width: 80px;">
+                <div class="form-group">
+                    <label>Solução Inicial (Separada por vírgulas)</label>
+                    <input id="solucaoInicial" type="text" placeholder="Ex: 0,1,2,3,4" class="modern-input">
+                </div>
+                
+                <div class="button-group">
+                    <button class="modern-btn" onclick="gerarProblema()">Gerar Matriz</button>
+                    <button class="modern-btn outline" onclick="gerarSolucaoInicial()">Ver Rota Inicial</button>
+                </div>
             </div>
 
-            <div id="paramsTE" style="display:none; margin-top: 10px;">
-                <label>TI (Temp. Inicial):</label> <input type="number" id="ti" value="100" style="width: 70px;">
-                <label>TF (Temp. Final):</label> <input type="number" id="tf" value="0.1" step="0.1" style="width: 70px;">
-                <label>FR (Resfriamento):</label> <input type="number" id="fr" value="0.8" step="0.1" style="width: 70px;">
+            <div class="sobre-card">
+                <h3>⚙️ Configuração do Algoritmo</h3>
+                
+                <div class="form-group">
+                    <label>Método de Melhoria</label>
+                    <select id="metodoBusca" class="modern-input" onchange="toggleParametros()">
+                        <option value="encosta">Subida de Encosta</option>
+                        <option value="tentativas">Subida de Encosta com Tentativas</option>
+                        <option value="tempera">Têmpera Simulada</option>
+                        <option value="comparativa">Análise Comparativa</option>
+                    </select>
+                </div>
+
+                <div id="paramsSET" style="display:none;" class="param-box">
+                    <div class="form-group">
+                        <label>Tentativas Máximas (TMAX):</label>
+                        <input type="number" id="tmax" value="5" class="modern-input">
+                    </div>
+                </div>
+
+                <div id="paramsTE" style="display:none;" class="param-box">
+                    <div style="display: flex; gap: 10px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Temp. Inicial (TI):</label> 
+                            <input type="number" id="ti" value="100" class="modern-input">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Temp. Final (TF):</label> 
+                            <input type="number" id="tf" value="0.1" step="0.1" class="modern-input">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Resfriamento (FR):</label> 
+                            <input type="number" id="fr" value="0.8" step="0.1" class="modern-input">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="modern-btn full-width-btn" onclick="executarBasico()">▶️ Executar Otimização</button>
             </div>
 
-            <button onclick="executarBasico()" style="margin-top: 15px;">Executar</button>
-        </div>
+            <div class="sobre-card full-width">
+                <h3>🖥️ Terminal de Saída (Logs)</h3>
+                <pre id="saidaBasico" style="margin-top: 10px; border-radius: 8px; border: 1px solid #1e293b;"></pre>
+            </div>
 
-        <div class="panel">
-            <h3>Área de saída</h3>
-            <pre id="saidaBasico"></pre>
         </div>
     </div>
 
     <div id="genetico" class="screen">
-        <h1>Algoritmo Genético</h1>
-        <div class="panel" style="border-left: 4px solid #38bdf8;">
-            <p><strong>Aviso:</strong> O Algoritmo Genético resolverá o problema atualmente carregado na aba "Algoritmo Básico". Gere a matriz lá primeiro!</p>
+        
+        <div class="sobre-header">
+            <h1>Algoritmo Genético</h1>
+            <p>Evolução Computacional e Seleção Natural</p>
         </div>
 
-        <div class="panel">
-            <label>Tamanho da População:</label>
-            <input id="ag_pop" type="number" value="50">
+        <div class="sobre-grid">
+            
+            <div class="sobre-card full-width" style="border-left: 4px solid #38bdf8; padding: 15px 25px;">
+                <p style="margin: 0;"><strong>Aviso:</strong> O Algoritmo Genético resolverá o problema atualmente carregado na aba "Algoritmo Básico". Gere a matriz lá primeiro!</p>
+            </div>
 
-            <label>Número de Gerações:</label>
-            <input id="ag_gens" type="number" value="100">
+            <div class="sobre-card full-width">
+                <h3 style="margin-bottom: 20px;">⚙️ Configurações da População</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    
+                    <div class="form-group">
+                        <label>Tamanho da População:</label>
+                        <input id="ag_pop" type="number" value="50" class="modern-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Número de Gerações:</label>
+                        <input id="ag_gens" type="number" value="100" class="modern-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Taxa de Mutação (0 a 1):</label>
+                        <input id="ag_mut" type="number" step="0.01" value="0.05" class="modern-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Taxa de Cruzamento (0 a 1):</label>
+                        <input id="ag_cross" type="number" step="0.01" value="0.8" class="modern-input">
+                    </div>
 
-            <label>Taxa de Mutação (0 a 1):</label>
-            <input id="ag_mut" type="number" step="0.01" value="0.05">
+                    <div class="form-group">
+                        <label>IG (Intervalo de Geração):</label>
+                        <input id="ag_ig" type="number" step="0.05" value="0.2" class="modern-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Método de Seleção:</label>
+                        <select id="ag_selecao" class="modern-input">
+                            <option value="roleta">Roleta (Proporcional ao Fitness)</option>
+                            <option value="torneio">Torneio (Disputa de k-Indivíduos)</option>
+                        </select>
+                    </div>
+                </div>
 
-            <label>Taxa de Cruzamento (0 a 1):</label>
-            <input id="ag_cross" type="number" step="0.01" value="0.8">
+                <div class="form-group" style="margin-top: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px; font-weight: bold; cursor: pointer; color: #e2e8f0; font-size: 14px;">
+                        <input type="checkbox" id="ag_elitismo" checked style="width: 20px; height: 20px; accent-color: #38bdf8;">
+                        Ativar Elitismo (Manter o melhor da geração)
+                    </label>
+                </div>
 
-            <label>Método de Seleção:</label>
-            <select id="ag_selecao" style="width: 100%;">
-                <option value="roleta">Roleta (Proporcional ao Fitness)</option>
-                <option value="torneio">Torneio (Disputa de k-Indivíduos)</option>
-            </select>
+                <button onclick="chamarAG()" class="modern-btn full-width-btn">Executar Evolução</button>
+            </div>
 
-            <label style="display: flex; align-items: center; gap: 10px; margin-top: 15px; font-weight: bold; cursor: pointer;">
-                <input type="checkbox" id="ag_elitismo" checked style="width: 20px; height: 20px;">
-                Ativar Elitismo (Manter o melhor da geração)
-            </label>
+            <div class="sobre-card">
+                <h3>📈 Evolução do Custo (Distância)</h3>
+                <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; border: 1px solid #1e293b;">
+                    <canvas id="grafico"></canvas>
+                </div>
+            </div>
 
-            <button onclick="chamarAG()" style="margin-top: 20px; width: 100%;">Executar Evolução</button>
-        </div>
+            <div class="sobre-card">
+                <h3>🏁 Resultado Final:</h3>
+                <pre id="saidaAG" style="margin-top: 10px; border-radius: 8px; border: 1px solid #1e293b; height: 250px;"></pre>
+            </div>
 
-        <div class="panel">
-            <h3>Evolução do Custo (Distância)</h3>
-            <canvas id="grafico"></canvas>
-        </div>
-
-        <div class="panel">
-            <h3>Resultado Final:</h3>
-            <pre id="saidaAG"></pre>
         </div>
     </div>
 
     <div id="sobre" class="screen">
-        <h1>Sobre o Sistema</h1>
-        
-        <p><strong>Descrição do Software:</strong></p>
-        <p>Sistema desenvolvido para a otimização de rotas focado em entregas de comida (Delivery) e vendedores ambulantes. Utilizando conceitos de Busca Local e o Problema do Caixeiro Viajante (PCV), o software calcula matematicamente a sequência ideal de paradas. O objetivo é minimizar a distância e o tempo gasto no trajeto, garantindo maior eficiência operacional na entrega dos pedidos a partir do restaurante.</p>
-        
-        <br>
-        <p><strong>Disciplina:</strong> Programação Linear</p>
-        <p><strong>Professor:</strong> Luis Fernando de Almeida</p>
-        
-        <br>
-        <p><strong>Discentes (Desenvolvedores):</strong></p>
-        <ul>
-            <li>Vinicius Gregorio</li>
-            <li>Robson Indalecio Barbosa Ribeiro</li>
-        </ul>
+        <div class="sobre-header">
+            <h1>🧭 PathFinder</h1>
+            <p>Inteligência em Otimização de Rotas e Logística</p>
+        </div>
 
-        <br>
-        <p><strong>Algoritmos Estudados e Implementados:</strong></p>
-        <ul>
-            <li>Busca Local: Subida de Encosta </li>
-            <li>Busca Local: Subida de Encosta com Tentativas</li>
-            <li>Busca Local: Têmpera Simulada </li>
-            <li>Algoritmos Genéticos (Módulo Futuro)</li>
-        </ul>
+        <div class="sobre-grid">
+            <div class="sobre-card">
+                <h3>📌 O Projeto</h3>
+                <p>O <strong>PathFinder</strong> é um sistema avançado de roteirização desenvolvido para solucionar o clássico <em>Problema do Caixeiro Viajante (PCV)</em>. O foco da aplicação é otimizar trajetos para entregas de delivery e logística na cidade de Cruzeiro-SP, garantindo matematicamente a rota mais curta, reduzindo tempo e custos de combustível.</p>
+            </div>
+
+            <div class="sobre-card">
+                <h3>⚙️ Módulos do Sistema</h3>
+                <ul class="sobre-list">
+                    <li><strong>Laboratório Básico:</strong> Resolução de matrizes de adjacência teóricas e Análise Comparativa rigorosa de desempenho (Tabela de Ganhos).</li>
+                    <li><strong>Delivery Real:</strong> Integração com mapas reais, geocodificação de endereços e cálculo de rotas considerando o asfalto e as mãos das vias.</li>
+                    <li><strong>Algoritmo Genético:</strong> Módulo de evolução computacional com Seleção (Roleta/Torneio), Cruzamento OX, Mutação e Elitismo.</li>
+                </ul>
+            </div>
+
+            <div class="sobre-card full-width" style="border-left: 4px solid #06b6d4;">
+                <h3 style="color: #06b6d4;">🧬 Decisões de Arquitetura (Algoritmo Genético)</h3>
+                <p>Durante o desenvolvimento do módulo genético, optamos por adotar abordagens da literatura moderna para maximizar o desempenho no Problema do Caixeiro Viajante (PCV):</p>
+                <ul class="sobre-list">
+                    <li><strong>Cruzamento OX (Order Crossover):</strong> Em vez de utilizar o cruzamento simples com "Ajuste de Restrições" (que consome processamento corrigindo filhos inválidos), implementamos o OX. Este método inteligente garante que os descendentes nasçam perfeitos, sem cidades repetidas ou ausentes, acelerando a convergência.</li>
+                    <li><strong>Mutação por Translocação em Bloco:</strong> Ao invés da troca simples (Swap) de apenas duas cidades, o sistema extrai e move blocos inteiros da rota. Isso preserva "mini-caminhos" que já são eficientes e evita destruir rotas promissoras conquistadas nas gerações anteriores.</li>
+                </ul>
+            </div>
+
+            <div class="sobre-card">
+                <h3>🧠 Algoritmos Implementados</h3>
+                <p style="font-size: 13px; color: #94a3b8; margin-bottom: 10px;">Clique num algoritmo para entender como ele pensa.</p>
+                <div class="tags-container">
+                    <span class="tag interactive-tag" onclick="abrirModalInfo('encosta')">Subida de Encosta (Hill Climbing) ℹ️</span>
+                    <span class="tag interactive-tag" onclick="abrirModalInfo('tentativas')">Subida com Tentativas (Restart) ℹ️</span>
+                    <span class="tag interactive-tag" onclick="abrirModalInfo('tempera')">Têmpera Simulada (Annealing) ℹ️</span>
+                    <span class="tag interactive-tag" onclick="abrirModalInfo('genetico')">Algoritmo Genético (AG) ℹ️</span>
+                </div>
+            </div>
+
+            <div class="sobre-card">
+                <h3>💻 Stack Tecnológico</h3>
+                <div class="tags-container tech-tags">
+                    <span class="tag">Python (Flask)</span>
+                    <span class="tag">JavaScript (ES6)</span>
+                    <span class="tag">Leaflet.js (Mapas)</span>
+                    <span class="tag">API OSRM (Rotas reais)</span>
+                    <span class="tag">API Nominatim (Endereços)</span>
+                    <span class="tag">Chart.js (Gráficos)</span>
+                </div>
+            </div>
+
+            <div class="sobre-card full-width">
+                <h3>🎓 Informações Acadêmicas</h3>
+                <div class="equipe-flex">
+                    <div class="equipe-info">
+                        <p><strong>Curso:</strong> 5º Semestre - Análise e Desenvolvimento de Sistemas (ADS)</p>
+                        <p><strong>Disciplina:</strong> Programação Linear</p>
+                        <p><strong>Professor Orientador:</strong> Luis Fernando de Almeida</p>
+                    </div>
+                    <div class="equipe-devs">
+                        <p><strong>Desenvolvedores:</strong></p>
+                        <ul class="sobre-list">
+                            <li>👨‍💻 Vinicius Gregorio</li>
+                            <li>👨‍💻 Robson Indalecio Barbosa Ribeiro</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="appReal" class="screen">
@@ -159,11 +281,12 @@
             
             <button onclick="limparMapa()" style="background: #ef4444; color: white; border: none; margin-bottom: 15px; width: 100%;">🗑️ Limpar Mapa</button>
 
-            <h3>Configuração do Algoritmo</h3>
+<h3>Configuração do Algoritmo</h3>
             <select id="metodoReal" onchange="toggleParametrosReal()" style="width: 100%; margin-bottom: 10px;">
                 <option value="encosta">Subida de Encosta</option>
                 <option value="tentativas">Subida de Encosta com Tentativas</option>
                 <option value="tempera">Têmpera Simulada</option>
+                <option value="genetico">Algoritmo Genético</option>
             </select>
 
             <div id="paramsRealSET" style="display:none; margin-bottom: 10px;">
@@ -174,6 +297,11 @@
                 <label>TI:</label> <input type="number" id="tiReal" value="100" style="width: 60px;">
                 <label>TF:</label> <input type="number" id="tfReal" value="0.1" step="0.01" style="width: 60px;">
                 <label>FR:</label> <input type="number" id="frReal" value="0.9" step="0.1" style="width: 60px;">
+            </div>
+
+            <div id="paramsRealAG" style="display:none; margin-bottom: 10px;">
+                <label>População:</label> <input type="number" id="agPopReal" value="50" style="width: 60px;">
+                <label>Gerações:</label> <input type="number" id="agGensReal" value="100" style="width: 60px;">
             </div>
 
             <div style="display: flex; gap: 10px; background: #0f172a; padding: 10px; border-radius: 5px;">
@@ -190,8 +318,18 @@
         </div>
     </div>
 
-</div>
+    <div id="modalInfo" class="modal-overlay" onclick="fecharModalInfo(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Título</h3>
+                <span class="close-btn" onclick="fecharModalInfo(event, true)">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p id="modalText">Texto explicativo.</p>
+            </div>
+        </div>
+    </div>
 
-<script src="app.js"></script>
+</div> <script src="app.js"></script>
 </body>
 </html>

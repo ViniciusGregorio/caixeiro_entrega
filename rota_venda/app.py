@@ -247,110 +247,230 @@ def executar_basico():
 
 
 
+# ==========================================
 # ALGORITMO GENÉTICO
+# ==========================================
 
-def fitness_pcv(sol, n, m):
-    custo = avalia(sol, n, m)
-    if custo == 0:
-        return 99999 
+def fitness_pcv(ind, n, m):
+    custo = avalia(ind, n, m)
     return 1.0 / custo
 
-def selecao_roleta(populacao, fitness_pop):
-    soma_fit = sum(fitness_pop)
-    r = random.uniform(0, soma_fit)
-    soma_parcial = 0
-    for i, fit in enumerate(fitness_pop):
-        soma_parcial += fit
-        if soma_parcial >= r:
-            return populacao[i]
-    return populacao[-1]
 
-def selecao_torneio(populacao, fitness_pop, k=3):
-    selecionados = random.sample(list(zip(populacao, fitness_pop)), k)
-    melhor = max(selecionados, key=lambda x: x[1])
-    return melhor[0]
+def selecao_roleta(pop, fitness):
 
-def cruzamento_ox(pai1, pai2, n):
-    filho = [-1] * n
-    a, b = sorted(random.sample(range(n), 2))
-    filho[a:b+1] = pai1[a:b+1] 
-    
-    p2_filtrado = [x for x in pai2 if x not in filho] 
-    idx = 0
-    for i in range(n):
-        if filho[i] == -1:
-            filho[i] = p2_filtrado[idx]
-            idx += 1
+    soma = sum(fitness)
+    r = random.uniform(0, soma)
+
+    acumulado = 0
+
+    for i in range(len(pop)):
+        acumulado += fitness[i]
+
+        if acumulado >= r:
+            return pop[i].copy()
+
+    return pop[-1].copy()
+
+
+def selecao_torneio(pop, fitness, k=3):
+
+    candidatos = random.sample(range(len(pop)), k)
+
+    melhor = candidatos[0]
+
+    for i in candidatos[1:]:
+
+        if fitness[i] > fitness[melhor]:
+            melhor = i
+
+    return pop[melhor].copy()
+
+
+def cruzamento_ox(p1, p2, n):
+
+    corte = random.randint(1, n - 1)
+
+    filho = p1[:corte]
+
+    for cidade in p2:
+        if cidade not in filho:
+            filho.append(cidade)
+
     return filho
 
-def mutacao_swap(ind, taxa_mutacao, n):
-    if random.random() < taxa_mutacao:
+
+def cruzamento_duplo(p1, p2, n):
+
+    filho1 = cruzamento_ox(p1, p2, n)
+    filho2 = cruzamento_ox(p2, p1, n)
+
+    return filho1, filho2
+
+"""
+def mutacao(ind, tm, n):
+
+    if random.random() <= tm:
+
         a, b = random.sample(range(n), 2)
+
         ind[a], ind[b] = ind[b], ind[a]
+
+    return ind """
+
+
+def mutacao_translocacao(ind, tm, n):
+    if random.random() <= tm: 
+        tamanho_bloco = random.randint(1, max(1, n // 3))  
+        origem = random.randint(0, n - tamanho_bloco)  
+        bloco = ind[origem : origem + tamanho_bloco]   
+        ind_sem_bloco = ind[:origem] + ind[origem + tamanho_bloco:]             
+        destino = random.randint(0, len(ind_sem_bloco))
+        ind = ind_sem_bloco[:destino] + bloco + ind_sem_bloco[destino:]
+        
     return ind
 
+
+def ordenar_populacao(pop, m):
+
+    return sorted(
+        pop,
+        key=lambda ind: avalia(ind, len(ind), m)
+    )
+
+
+def gerar_descendentes(pop, fitness, n, tp, tc, tm, metodo):
+
+    descendentes = []
+
+    while len(descendentes) < (2 * tp):
+
+
+        if metodo == "torneio":
+            pai1 = selecao_torneio(pop, fitness)
+            pai2 = selecao_torneio(pop, fitness)
+        else:
+            pai1 = selecao_roleta(pop, fitness)
+            pai2 = selecao_roleta(pop, fitness)
+
+        if random.random() <= tc:
+            filho1, filho2 = cruzamento_duplo(pai1, pai2, n)
+        else:
+            filho1 = pai1.copy()
+            filho2 = pai2.copy()
+
+        filho1 = mutacao_translocacao(filho1, tm, n)
+        filho2 = mutacao_translocacao(filho2, tm, n)
+
+        descendentes.append(filho1)
+        descendentes.append(filho2)
+
+    return descendentes
+
+
+def nova_populacao(pop, descendentes, m, tp, ig):
+
+    elite = max(2, int(tp * ig))
+
+    pop = ordenar_populacao(pop, m)
+    descendentes = ordenar_populacao(descendentes, m)
+
+    nova = []
+
+    nova.extend(pop[:elite])
+
+    faltam = tp - elite
+
+    nova.extend(descendentes[:faltam])
+
+    return nova
+
 @app.route('/executar_ag', methods=['POST'])
-def executar_ag_rota():
+def executar_ag():
+
     dados = request.json
+
     n = dados.get('tamanho')
     m = dados.get('matriz')
-    tamanho_pop = dados.get('tamanho_pop', 50)
-    geracoes = dados.get('geracoes', 100)
-    taxa_mutacao = dados.get('taxa_mutacao', 0.05)
-    taxa_cruzamento = dados.get('taxa_cruzamento', 0.8)
-    elitismo = dados.get('elitismo', True)
-    metodo_selecao = dados.get('metodo_selecao', 'roleta')
+
+    tp = dados.get('tamanho_pop', 50)
+    ng = dados.get('geracoes', 100)
+
+    tc = dados.get('taxa_cruzamento', 0.8)
+    tm = dados.get('taxa_mutacao', 0.05)
+
+    metodo = dados.get('metodo_selecao', 'roleta')
+
+    ig = dados.get('intervalo_geracao', 0.2)
 
     populacao = []
-    for _ in range(tamanho_pop):
-        ind = list(range(n))
-        random.shuffle(ind)
-        populacao.append(ind)
 
-    melhor_global = None
-    melhor_custo_global = float('inf')
+    for _ in range(tp):
+
+        individuo = list(range(n))
+        random.shuffle(individuo)
+        populacao.append(individuo)
+
+    populacao = ordenar_populacao(populacao, m)
+
+    melhor_global = populacao[0].copy()
+
+    melhor_custo_global = avalia(
+        melhor_global,
+        n,
+        m
+    )
+
     historico_custos = []
 
-    for geracao in range(geracoes):
-        fitness_pop = [fitness_pcv(ind, n, m) for ind in populacao]
-        custos_pop = [avalia(ind, n, m) for ind in populacao]
+    for geracao in range(ng):
+        fitness = [
+            fitness_pcv(ind, n, m)
+            for ind in populacao
+        ]
 
-        melhor_idx = custos_pop.index(min(custos_pop))
-        if custos_pop[melhor_idx] < melhor_custo_global:
-            melhor_custo_global = custos_pop[melhor_idx]
-            melhor_global = populacao[melhor_idx].copy()
+        descendentes = gerar_descendentes(
+            populacao,
+            fitness,
+            n,
+            tp,
+            tc,
+            tm,
+            metodo
+        )
 
-        historico_custos.append(melhor_custo_global)
+        populacao = nova_populacao(
+            populacao,
+            descendentes,
+            m,
+            tp,
+            ig
+        )
 
-        nova_populacao = []
+        populacao = ordenar_populacao(
+            populacao,
+            m
+        )
 
-        if elitismo:
-            nova_populacao.append(melhor_global.copy())
+        melhor_geracao = populacao[0]
 
-        while len(nova_populacao) < tamanho_pop:
-            if metodo_selecao == 'torneio':
-                pai1 = selecao_torneio(populacao, fitness_pop)
-                pai2 = selecao_torneio(populacao, fitness_pop)
-            else:
-                pai1 = selecao_roleta(populacao, fitness_pop)
-                pai2 = selecao_roleta(populacao, fitness_pop)
+        custo_geracao = avalia(
+            melhor_geracao,
+            n,
+            m
+        )
 
-            if random.random() < taxa_cruzamento:
-                filho = cruzamento_ox(pai1, pai2, n)
-            else:
-                filho = pai1.copy() if random.random() < 0.5 else pai2.copy()
-
-            filho = mutacao_swap(filho, taxa_mutacao, n)
-            nova_populacao.append(filho)
-
-        populacao = nova_populacao[:tamanho_pop]
+        if custo_geracao < melhor_custo_global:
+            melhor_custo_global = custo_geracao
+            melhor_global = melhor_geracao.copy()
+        historico_custos.append(
+            melhor_custo_global
+        )
 
     return jsonify({
         "melhor_rota": melhor_global,
         "melhor_custo": melhor_custo_global,
         "historico_custos": historico_custos
     })
-
 
 #MODO DELIVERY COM MAPA
 
@@ -360,10 +480,17 @@ def calcular_delivery_mapa():
     coords = dados.get('coordenadas', [])
     metodo = dados.get('metodo', 'encosta')
     
+    
     tmax = dados.get('tmax', 5)
     ti = dados.get('ti', 100)
     tf = dados.get('tf', 0.1)
     fr = dados.get('fr', 0.8)
+    
+    
+    ag_pop = dados.get('ag_pop', 50)
+    ag_gens = dados.get('ag_gens', 100)
+    ag_mut = 0.05
+    ag_cross = 0.8
     
     n_real = len(coords)
     if n_real < 2:
@@ -371,7 +498,6 @@ def calcular_delivery_mapa():
     if n_real > 50:
         return jsonify({"erro": f"Limite máximo atingido. Selecionou {n_real} pontos, mas o máximo permitido é 50."})
 
-    
     str_coords = ";".join([f"{c['lng']},{c['lat']}" for c in coords])
     url_osrm = f"http://router.project-osrm.org/table/v1/driving/{str_coords}?annotations=distance"
     
@@ -381,14 +507,12 @@ def calcular_delivery_mapa():
         
         if osrm_data.get('code') != 'Ok':
             return jsonify({"erro": "Erro ao consultar as ruas no OSRM."})
-            
-        
+             
         matriz_metros = osrm_data['distances']
         m_recortada = [[val / 1000.0 for val in linha] for linha in matriz_metros]
         
     except Exception as e:
         return jsonify({"erro": f"Erro de conexão com o OSRM: {str(e)}"})
-
 
     si = list(range(n_real))
     vi = avalia(si, n_real, m_recortada)
@@ -398,11 +522,36 @@ def calcular_delivery_mapa():
         sf, cf, _ = metodo_subida_encosta(si, vi, n_real, m_recortada)
     elif metodo == 'tentativas':
         sf, cf, _ = metodo_subida_tentativas(si, vi, n_real, m_recortada, tmax)
-    else: 
+    elif metodo == 'tempera':
         sf, cf, _ = metodo_tempera_simulada(si, vi, n_real, m_recortada, ti, tf, fr)
+    elif metodo == 'genetico':
+       
+        populacao = []
+        for _ in range(ag_pop):
+            ind = list(range(n_real))
+            random.shuffle(ind)
+            populacao.append(ind)
+            
+        populacao = ordenar_populacao(populacao, m_recortada)
+        melhor_global = populacao[0].copy()
+        melhor_custo_global = avalia(melhor_global, n_real, m_recortada)
+        
+        for geracao in range(ag_gens):
+            fitness = [fitness_pcv(ind, n_real, m_recortada) for ind in populacao]
+            descendentes = gerar_descendentes(populacao, fitness, n_real, ag_pop, ag_cross, ag_mut, "roleta")
+            populacao = nova_populacao(populacao, descendentes, m_recortada, ag_pop, 0.2)
+            populacao = ordenar_populacao(populacao, m_recortada)
+            
+            custo_geracao = avalia(populacao[0], n_real, m_recortada)
+            if custo_geracao < melhor_custo_global:
+                melhor_custo_global = custo_geracao
+                melhor_global = populacao[0].copy()
+        
+        sf = melhor_global
+        cf = melhor_custo_global
     
+   
     cf = avalia(sf, n_real, m_recortada)
-    
     idx_zero = sf.index(0)
     sf_rotacionado = sf[idx_zero:] + sf[:idx_zero]
     sf_rotacionado.append(0) 
@@ -412,6 +561,5 @@ def calcular_delivery_mapa():
         "distancia_km": round(cf, 2),
         "metodo_usado": metodo
     })
-
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

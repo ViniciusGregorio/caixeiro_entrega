@@ -1,83 +1,67 @@
-#  PathFinder: Otimização de Rotas de Delivery
+# 🧭 PathFinder: Inteligência em Otimização de Rotas e Logística
 
-O **PathFinder** é um sistema inteligente de roteirização desenvolvido para otimizar trajetos de entrega de comida e vendedores ambulantes na cidade de Cruzeiro-SP. O projeto combina algoritmos clássicos de **Programação Linear** e **Busca Local** com tecnologias modernas de mapeamento geoespacial.
+O **PathFinder** é um sistema de roteirização desenvolvido para solucionar o clássico *Problema do Caixeiro Viajante (PCV)*. O foco da aplicação é otimizar trajetos para entregas de delivery e logística na cidade de Cruzeiro-SP. O projeto combina algoritmos de **Busca Local** e **Computação Evolutiva** com tecnologias de mapeamento geoespacial.
 
 ---
 
 ##  Funcionalidades Principais
 
-### 1.  Laboratório de Algoritmos (Académico)
-* **Resolução de PCV (Problema do Caixeiro Viajante):** Teste de algoritmos em matrizes de adjacência aleatórias ou fixas.
-* **Análise Comparativa:** Execução automatizada baseada nos parâmetros da **Tabela 1** (Requisito da Disciplina), comparando o desempenho entre diferentes métodos.
-* **Logs em Tempo Real:** Terminal interativo que exibe o histórico de soluções aceitas e a evolução do custo (distância).
+### 1. 🔍 Laboratório de Algoritmos (Módulo Acadêmico)
+* **Resolução de PCV Teórico:** Teste em matrizes de adjacência aleatórias ou inseridas manualmente.
+* **Análise Comparativa de Ganhos:** Execução automatizada baseada nos parâmetros. O sistema calcula não apenas a melhor rota, mas o **Ganho (%)** e a economia de distância absoluta em relação à rota inicial cega.
+* **Logs em Tempo Real:** Terminal interativo que exibe o histórico passo a passo das soluções aceitas pelo algoritmo.
 
-### 2.  Simulador de Delivery Real (Cruzeiro-SP)
-* **Mapa Interativo:** Integração com *Leaflet.js* e *OpenStreetMap*.
-* **Geocodificação Inteligente:** Pesquisa de endereços com *autocomplete* e tratamento de termos (ignora automaticamente "Rua", "Travessa", etc. para buscas mais precisas).
-* **Matriz de Distâncias Real:** Consumo da API *OSRM* para calcular distâncias baseadas na malha viária real (considerando curvas e sentidos de ruas).
-* **Cálculo de Ciclo Fechado:** Garante que o estafeta parta do restaurante, visite todos os pontos e retorne à base.
-* **Estimativa de Custos:** Cálculo automático de gasto de combustível baseado no consumo da moto e preço da gasolina.
+### 2. 🏍️ Simulador de Delivery Real (Cruzeiro-SP)
+* **Mapa Interativo CartoDB:** Integração com mapas em *Dark Mode* de alta performance, projetados para destacar as rotas sem causar fadiga visual.
+* **Geocodificação Inteligente:** Pesquisa de endereços via *Nominatim* com *autocomplete* e limpeza de termos (ignora "Rua", "Travessa" etc., para buscas precisas).
+* **Traçado pelas Ruas:** Consumo do endpoint `/route` da API *OSRM* para desenhar a linha da rota seguindo perfeitamente o asfalto, curvas e mãos das vias (GeoJSON), superando as linhas retas tradicionais.
+* **Dinâmica de Entregas:** Cálculo de ciclo fechado (o entregador obrigatoriamente parte e retorna ao restaurante). Popup interativo nas marcações para exclusão individual de pontos.
+* **Dashboard Financeiro:** Cálculo automático de custo de combustível com base no consumo da moto (km/L) e no preço da gasolina.
 
-### 3.  Módulo Genético (Beta)
-* Visualização gráfica da evolução de *fitness* utilizando *Chart.js*.
-* Estrutura preparada para implementação futura de algoritmos genéticos aplicados a rotas.
+### 3. 🧬 Módulo Genético (Evolução Computacional)
+Motor genético completo para simular a seleção natural aplicada a rotas:
+* **Seleção:** Suporte a métodos de *Roleta* (proporcional ao fitness) e *Torneio*.
+* **Cruzamento OX (Order Crossover):** Arquitetura que garante o nascimento de descendentes perfeitos, sem cidades repetidas ou ausentes.
+* **Mutação por Translocação em Bloco:** Evolução do *swap*. Extrai e move blocos inteiros da rota para preservar "mini-caminhos" eficientes.
+* **Monitoramento Gráfico:** Acompanhamento dinâmico da curva de minimização do custo utilizando *Chart.js*.
+* Suporte a Elitismo e controle fino de gerações, taxa de mutação e população.
 
 ---
 
-##  Tecnologias Utilizadas
+##  Stack Tecnológico
 
 **Backend:**
 * Python 3.x
-* Flask (Micro-framework Web)
-* Flask-CORS (Segurança e comunicação)
+* Flask (Micro-framework Web API)
+* Flask-CORS (Segurança)
 * Requests (Consumo de APIs externas)
 
 **Frontend:**
-* HTML5 & CSS3 (Design moderno com foco em UX)
-* JavaScript (ES6+)
-* Leaflet.js (Mapas interativos)
-* Chart.js (Gráficos de desempenho)
+* HTML5 & CSS3 (Design moderno, Grid Layout, Cards Interativos e Modais Dinâmicos)
+* JavaScript (ES6+ assíncrono)
+* Leaflet.js & CartoDB (Mapas e Tilesets de alta performance)
+* Chart.js (Gráficos analíticos)
 
 **APIs Externas:**
-* **OSRM (Open Source Routing Machine):** Cálculo de matrizes de distância.
-* **Nominatim (OpenStreetMap):** Pesquisa e identificação de endereços.
+* **OSRM (Open Source Routing Machine):** Cálculo de matrizes de distância e extração de geometria de vias.
+* **Nominatim (OpenStreetMap):** Autocomplete e geolocalização.
 
 ---
 
 ##  Algoritmos Implementados
 
-O sistema utiliza três métodos principais de melhoria para encontrar a rota ideal:
+O sistema conta com um pop-up interativo na interface que explica a lógica de cada um dos quatro métodos matemáticos implementados:
 
-1.  **Subida de Encosta (Hill Climbing):** Algoritmo de busca local que aceita apenas mudanças que reduzem o custo imediato.
-2.  **Subida de Encosta com Tentativas (Restart):** Executa múltiplas buscas a partir de pontos iniciais aleatórios para evitar mínimos locais.
-3.  **Têmpera Simulada (Simulated Annealing):** Inspirado na metalurgia, permite aceitar rotas piores no início para explorar o mapa e escapar de becos sem saída matemáticos, "esfriando" o sistema até encontrar o melhor resultado.
+1. **Subida de Encosta (Hill Climbing):** Busca local gulosa que analisa a vizinhança e caminha em direção à melhoria imediata.
+2. **Subida de Encosta com Tentativas (Restart):** Executa saltos aleatórios (*random restarts*) para forçar o sistema a escapar de Mínimos Locais e encontrar o Mínimo Global.
+3. **Têmpera Simulada (Simulated Annealing):** Inspirado no resfriamento de metais, aceita rotas piores de propósito no início (com base em probabilidade termodinâmica) para explorar melhor o mapa.
+4. **Algoritmo Genético (AG):** Motor de evolução simultânea de populações usando as regras clássicas de aptidão de Darwin adaptadas ao PCV.
 
 ---
 
 ##  Como Executar o Projeto
 
-1. **Instale as dependências:**
-   
+1. **Instale as dependências do Python:**
+```bash
    python -m pip install flask flask-cors requests
-
-1. **Inicie o servidor Backend:**
-
-   python app.py
-
-1. **Abra o sistema:**
-
-   Basta abrir o ficheiro index.html em qualquer navegador
-
-   obs: se o mapa iterativo apresentar erro, basta iniciar um servidor web para o Front-end:
-   python -m http.server 8000 
-   ou instalar a extensão "live server" e iniciar o index com ela
-
-## Contexto Académico
-
-**Disciplina: Programação Linear**
-
-**Professor: Luis Fernando de Almeida**
-
-**Instituição: FATEC Cruzeiro - SP**
-
-**Desenvolvedores: Vinicius Gregorio & Robson Indalecio Barbosa Ribeiro**
+   rode py app.py e clique no link(ou abra com a extensão live server)

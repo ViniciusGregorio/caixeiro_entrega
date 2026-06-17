@@ -155,7 +155,8 @@ async function chamarAG() {
         taxa_mutacao: parseFloat(document.getElementById("ag_mut").value),
         taxa_cruzamento: parseFloat(document.getElementById("ag_cross").value),
         metodo_selecao: document.getElementById("ag_selecao").value,
-        elitismo: document.getElementById("ag_elitismo").checked
+        elitismo: document.getElementById("ag_elitismo").checked,
+        intervalo_geracao: parseFloat(document.getElementById("ag_ig").value),
     };
 
     document.getElementById("saidaAG").textContent = "🧬 Cruzando gerações e evoluindo população...\nAguarde alguns instantes.";
@@ -221,6 +222,7 @@ function toggleParametrosReal() {
     let metodo = document.getElementById("metodoReal").value;
     document.getElementById("paramsRealSET").style.display = (metodo === "tentativas") ? "block" : "none";
     document.getElementById("paramsRealTE").style.display = (metodo === "tempera") ? "block" : "none";
+    document.getElementById("paramsRealAG").style.display = (metodo === "genetico") ? "block" : "none";
 }
 
 function initMapa() {
@@ -408,6 +410,49 @@ document.addEventListener('click', function(event) {
     }
 });
 
+const infoAlgoritmos = {
+    'encosta': {
+        titulo: '⛰️ Subida de Encosta (Hill Climbing)',
+        texto: 'É um algoritmo de busca local "guloso". Ele analisa as rotas vizinhas à atual e sempre dá um passo na direção que diminui a distância imediatamente. A sua principal desvantagem é que pode ficar preso facilmente em "mínimos locais" (becos sem saída matemáticos), encerrando a busca sem descobrir que existia uma rota melhor do outro lado do mapa.'
+    },
+    'tentativas': {
+        titulo: '🔄 Subida com Tentativas (Restart)',
+        texto: 'Resolve a fraqueza (miopia) da Subida de Encosta clássica. Quando o algoritmo percebe que ficou preso num mínimo local, ele salva o melhor resultado e "pula de paraquedas" num ponto totalmente aleatório do mapa (random shuffle), reiniciando a busca. Ao fazer isso várias vezes (TMAX), as chances de encontrar o Mínimo Global (a rota perfeita) aumentam drasticamente.'
+    },
+    'tempera': {
+        titulo: '🔥 Têmpera Simulada (Simulated Annealing)',
+        texto: 'Inspirado no processo de resfriamento de metais na metalurgia. É a heurística clássica mais inteligente. Para fugir de Mínimos Locais, ele aceita escolher uma rota <b>pior</b> de propósito no início da busca. A probabilidade de ele aceitar um "erro" diminui à medida que o sistema "esfria", forçando o algoritmo a refinar o resultado no final. É altamente convergente.'
+    },
+    'genetico': {
+        titulo: '🧬 Algoritmo Genético',
+        texto: 'Inspirado na teoria de Darwin e seleção natural, ele evolui uma população inteira simultaneamente. As melhores rotas sobrevivem (Torneio/Roleta) e cruzam entre si utilizando o <b>Cruzamento OX</b> para gerar filhos saudáveis. Ocasionalmente, ocorrem mutações biológicas através de <b>Translocação em Bloco</b> para manter a diversidade do DNA e evitar a estagnação da espécie.'
+    }
+};
+
+function abrirModalInfo(chave) {
+    let dados = infoAlgoritmos[chave];
+    document.getElementById('modalTitle').innerHTML = dados.titulo;
+    document.getElementById('modalText').innerHTML = dados.texto;
+    
+    // Mostra o modal com animação
+    document.getElementById('modalInfo').style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('modalInfo').classList.add('show');
+    }, 10);
+}
+
+function fecharModalInfo(event, force=false) {
+    // Só fecha se clicou no X ou fora da caixa do modal
+    if (force || event.target.id === 'modalInfo') {
+        let modal = document.getElementById('modalInfo');
+        modal.classList.remove('show');
+        // Espera a animação de desaparecer antes de dar display: none
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+}
+
 async function calcularDeliveryMapa() {
     if (coordenadas.length < 2) {
         alert("Adicione ao menos 1 Restaurante (Ponto inicial) e 1 Cliente!");
@@ -420,7 +465,9 @@ async function calcularDeliveryMapa() {
         tmax: parseInt(document.getElementById("tmaxReal").value),
         ti: parseFloat(document.getElementById("tiReal").value),
         tf: parseFloat(document.getElementById("tfReal").value),
-        fr: parseFloat(document.getElementById("frReal").value)
+        fr: parseFloat(document.getElementById("frReal").value),
+        ag_pop: document.getElementById("agPopReal") ? parseInt(document.getElementById("agPopReal").value) : 50,
+        ag_gens: document.getElementById("agGensReal") ? parseInt(document.getElementById("agGensReal").value) : 100
     };
     
     let saidaDelivery = document.getElementById("saidaDelivery");
