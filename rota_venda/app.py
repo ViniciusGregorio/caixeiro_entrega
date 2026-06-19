@@ -577,14 +577,24 @@ def gerar_relatorio():
     TM_list = [0, 0.2, 0.8]
     IG_list = [0, 0.1, 0.7]
 
+
+    m_fixa = [[0 if i == j else random.randint(1, 20) for j in range(N)] for i in range(N)]
+    si_fixa = list(range(N))
+    random.shuffle(si_fixa)
+    vi_fixa = avalia(si_fixa, N, m_fixa)
+
+
+    print("\n" + "="*60)
+    print("📋 DADOS FIXOS PARA COLOCAR NO RELATÓRIO DO WORD:")
+    print("Solução Inicial Fixa:")
+    print(si_fixa)
+    print(f"Custo Inicial (Vi): {vi_fixa}")
+    print("="*60 + "\n")
+
+   
     instancias = []
     for _ in range(simulacoes):
-        m = [[0 if i == j else random.randint(1, 20) for j in range(N)] for i in range(N)]
-        si = list(range(N))
-        random.shuffle(si)
-        vi = avalia(si, N, m)
-        instancias.append({"matriz": m, "si": si, "vi": vi})
-
+        instancias.append({"matriz": m_fixa, "si": si_fixa.copy(), "vi": vi_fixa})
     resultados_ag = []
     todas_combinacoes = list(itertools.product(TP_list, NG_list, TC_list, TM_list, IG_list))
 
