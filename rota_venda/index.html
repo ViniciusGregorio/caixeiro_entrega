@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,8 +25,9 @@
     </div>
     <button onclick="showScreen('basico')">Algoritmo Básico</button>
     <button onclick="showScreen('genetico')">Algoritmo Genético</button>
-    <button onclick="showScreen('sobre')">Sobre o Sistema</button>
     <button onclick="showScreen('appReal')">Delivery Real (Cruzeiro)</button>
+    <button onclick="showScreen('relatorio')">📊 Relatório Final (PDF)</button>
+    <button onclick="showScreen('sobre')">Sobre o Sistema</button>
 </div>
 
 <div class="main">
@@ -329,7 +331,66 @@
             </div>
         </div>
     </div>
+    
+<div id="relatorio" class="screen">
+        <div class="sobre-header">
+            <h1>Relatório Analítico Consolidado</h1>
+            <p>Avaliação de Desempenho e Parametrização</p>
+        </div>
 
+        <div class="sobre-card full-width" style="border-left: 4px solid #f59e0b;">
+            <h3 style="color: #f59e0b;">Aviso: Processamento Computacional Intensivo</h3>
+            <p>A execução deste módulo iniciará o processamento em lote de <b>324 configurações</b> do Algoritmo Genético, submetidas a 20 instâncias independentes (N=50). </p>
+            <p>O tempo estimado varia entre <b>2 e 15 minutos</b>, dependendo da capacidade de processamento do hardware. Recomenda-se não interromper a sessão do navegador durante a rotina.</p>
+            <button onclick="gerarRelatorioFinal()" class="modern-btn full-width-btn" id="btnRelatorio">Iniciar Análise</button>
+        </div>
+
+        <div id="loadingRelatorio" style="display: none; text-align: center; padding: 40px;">
+            <h2 style="color: #38bdf8;">Processando Simulações...</h2>
+            <p>Aguarde a finalização dos cálculos e a ordenação dos resultados métricos.</p>
+            <div class="spinner" style="margin: 20px auto;"></div>
+        </div>
+
+        <div id="resultadoRelatorio" style="display: none;">
+            <div class="button-group" style="justify-content: flex-end; margin-bottom: 15px;">
+                 <button onclick="exportarPDF()" class="modern-btn outline" style="flex: none; border-color: #f59e0b; color: #f59e0b;">Exportar PDF</button>
+            </div>
+            
+            <div id="conteudoPDF" style="background: white; color: black; padding: 40px; border-radius: 8px;">
+                <h1 style="text-align: center; color: #020617; border-bottom: 2px solid #38bdf8; padding-bottom: 10px;">Relatório Comparativo de Otimização</h1>
+                <p style="text-align: center; color: #475569;">Problema do Caixeiro Viajante | <strong>N = 50</strong> | <strong>20 Simulações</strong></p>
+                
+                <h3 style="color: #0f172a; margin-top: 30px;">Parte 1 - Análise de Parâmetros Genéticos (3 Melhores Configurações)</h3>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; font-family: sans-serif; text-align: center; font-size: 14px;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Rank</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">População (TP)</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Gerações (NG)</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Cruzamento (TC)</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Mutação (TM)</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Elitismo (IG)</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; background-color: #dbeafe;">Ganho Médio (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaAG"></tbody>
+                </table>
+
+                <h3 style="color: #0f172a;">Parte 2 - Análise Comparativa Geral</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; text-align: left; font-size: 14px;">
+                    <thead>
+                        <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center;">Rank Global</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Método Aplicado</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1;">Parâmetros da Execução</th>
+                            <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; background-color: #dbeafe;">Ganho Médio (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaGlobal"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div> <script src="app.js"></script>
 </body>
 </html>

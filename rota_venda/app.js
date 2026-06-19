@@ -527,3 +527,71 @@ async function calcularDeliveryMapa() {
         saidaDelivery.textContent += "\nErro na conexão com a API ou Python.";
     }
 }
+
+
+// MÓDULO DO RELATÓRIO FINAL E PDF
+
+async function gerarRelatorioFinal() {
+    document.getElementById('btnRelatorio').disabled = true;
+    document.getElementById('loadingRelatorio').style.display = 'block';
+    document.getElementById('resultadoRelatorio').style.display = 'none';
+
+    try {
+        let response = await fetch('http://127.0.0.1:5000/gerar_relatorio', { method: 'POST' });
+        let data = await response.json();
+
+        if (data.erro) {
+            alert("Falha no processamento: " + data.erro);
+            document.getElementById('loadingRelatorio').style.display = 'none';
+            document.getElementById('btnRelatorio').disabled = false;
+            return;
+        }
+
+        // 1. Preenche Tabela do Top 10 AG
+        let htmlAG = "";
+        data.top_ag.forEach((ag, index) => {
+            htmlAG += `<tr>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">${index + 1}º</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.tp}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.ng}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.tc}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.tm}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.ig}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #0369a1;">${ag.ganho_medio.toFixed(2)}%</td>
+            </tr>`;
+        });
+        document.getElementById('tabelaAG').innerHTML = htmlAG;
+
+        // 2. Preenche Tabela Global
+        let htmlGlobal = "";
+        data.tabela_comparativa.forEach((item, index) => {
+            htmlGlobal += `<tr>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${index + 1}º</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${item.metodo}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${item.parametros}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #0369a1;">${item.ganho_medio.toFixed(2)}%</td>
+            </tr>`;
+        });
+        document.getElementById('tabelaGlobal').innerHTML = htmlGlobal;
+
+        document.getElementById('loadingRelatorio').style.display = 'none';
+        document.getElementById('resultadoRelatorio').style.display = 'block';
+
+    } catch(e) {
+        alert("Ocorreu uma exceção do tipo Timeout. Devido à alta demanda computacional, a requisição excedeu o tempo de resposta padrão. Acompanhe a execução no terminal do servidor Python.");
+        document.getElementById('loadingRelatorio').style.display = 'none';
+    }
+    document.getElementById('btnRelatorio').disabled = false;
+}
+
+function exportarPDF() {
+    let elemento = document.getElementById('conteudoPDF');
+    let opt = {
+        margin:       15,
+        filename:     'Relatorio_Final_PathFinder.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(elemento).save();
+}

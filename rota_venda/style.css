@@ -438,3 +438,27 @@ input:disabled {
     background-color: #020617; 
     border-color: #0f172a;
 }
+
+.spinner {
+    width: 60px;
+    height: 60px;
+    border: 6px solid #1e293b;
+    border-top: 6px solid #38bdf8;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid-page !important;
+}
+
+#conteudoPDF {
+    
+    -webkit-font-smoothing: antialiased;
+}

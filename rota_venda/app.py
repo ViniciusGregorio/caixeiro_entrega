@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import random
 import math
+import itertools
 import requests
 
 app = Flask(__name__)
@@ -561,5 +562,115 @@ def calcular_delivery_mapa():
         "distancia_km": round(cf, 2),
         "metodo_usado": metodo
     })
+
+
+# GERAÇÃO DO RELATÓRIO FINAL
+
+@app.route('/gerar_relatorio', methods=['POST'])
+def gerar_relatorio():
+    N = 50
+    simulacoes = 20
+
+    TP_list = [10, 50, 100]
+    NG_list = [10, 50, 100, 200]
+    TC_list = [0.2, 0.5, 0.8]
+    TM_list = [0, 0.2, 0.8]
+    IG_list = [0, 0.1, 0.7]
+
+    instancias = []
+    for _ in range(simulacoes):
+        m = [[0 if i == j else random.randint(1, 20) for j in range(N)] for i in range(N)]
+        si = list(range(N))
+        random.shuffle(si)
+        vi = avalia(si, N, m)
+        instancias.append({"matriz": m, "si": si, "vi": vi})
+
+    resultados_ag = []
+    todas_combinacoes = list(itertools.product(TP_list, NG_list, TC_list, TM_list, IG_list))
+
+    print(f"Iniciando laboratório. Testando {len(todas_combinacoes)} combinações do Genético...")
+
+    for tp, ng, tc, tm, ig in todas_combinacoes:
+        ganhos = []
+        for inst in instancias:
+            m, si, vi = inst["matriz"], inst["si"], inst["vi"]
+
+            pop = [list(range(N)) for _ in range(tp)]
+            for ind in pop: random.shuffle(ind)
+            pop[0] = si.copy()
+            pop = ordenar_populacao(pop, m)
+            
+            melhor_custo_global = avalia(pop[0], N, m)
+
+            for geracao in range(ng):
+                fitness = [fitness_pcv(ind, N, m) for ind in pop]
+                desc = gerar_descendentes(pop, fitness, N, tp, tc, tm, "roleta")
+                pop = nova_populacao(pop, desc, m, tp, ig)
+                pop = ordenar_populacao(pop, m)
+                
+                custo = avalia(pop[0], N, m)
+                if custo < melhor_custo_global:
+                    melhor_custo_global = custo
+            
+            vf = melhor_custo_global
+            ganho_perc = 100 * ((vi - vf) / vi) if vi > 0 else 0
+            ganhos.append(ganho_perc)
+
+        ganho_medio = sum(ganhos) / simulacoes
+        resultados_ag.append({
+            "parametros": f"TP:{tp} | NG:{ng} | TC:{tc} | TM:{tm} | IG:{ig}",
+            "tp": tp, "ng": ng, "tc": tc, "tm": tm, "ig": ig,
+            "ganho_medio": ganho_medio
+        })
+
+    resultados_ag.sort(key=lambda x: x["ganho_medio"], reverse=True)
+    top_3_ag = resultados_ag[:3]
+
+    print("Genético Concluído. Iniciando Parametros Locais...")
+
+    tabela_final = []
+
+    # 1. 3 Melhores Configurações do AG 
+    for i, config in enumerate(top_3_ag):
+        tabela_final.append({
+            "metodo": f"Algoritmo Genético (Top {i+1})",
+            "parametros": config["parametros"],
+            "ganho_medio": config["ganho_medio"]
+        })
+
+    # 2. Subida de Encosta 
+    ganhos_se = []
+    for inst in instancias:
+        _, cf, _ = metodo_subida_encosta(inst["si"], inst["vi"], N, inst["matriz"])
+        ganho = 100 * ((inst["vi"] - cf) / inst["vi"])
+        ganhos_se.append(ganho)
+    tabela_final.append({"metodo": "Subida de Encosta (SE)", "parametros": "Configuração Única", "ganho_medio": sum(ganhos_se)/simulacoes})
+
+    # 3. Subida com Tentativas (SET) 
+    for tmax in [N, int(N/2)]:
+        ganhos_set = []
+        for inst in instancias:
+            _, cf, _ = metodo_subida_tentativas(inst["si"], inst["vi"], N, inst["matriz"], tmax)
+            ganhos_set.append(100 * ((inst["vi"] - cf) / inst["vi"]))
+        tabela_final.append({"metodo": "Subida c/ Tentativas (SET)", "parametros": f"TMAX = {tmax}", "ganho_medio": sum(ganhos_set)/simulacoes})
+
+    # 4. Têmpera Simulada (TS) 
+    configs_ts = [[2000, 0.1, 0.8], [2000, 0.01, 0.8], [2000, 0.1, 0.9], [2000, 0.01, 0.9]]
+    for ti, tf, fr in configs_ts:
+        ganhos_ts = []
+        for inst in instancias:
+            _, cf, _ = metodo_tempera_simulada(inst["si"], inst["vi"], N, inst["matriz"], ti, tf, fr)
+            ganhos_ts.append(100 * ((inst["vi"] - cf) / inst["vi"]))
+        tabela_final.append({"metodo": "Têmpera Simulada (TS)", "parametros": f"TI={ti} | TF={tf} | FR={fr}", "ganho_medio": sum(ganhos_ts)/simulacoes})
+
+    # Classificação Final
+    tabela_final.sort(key=lambda x: x["ganho_medio"], reverse=True)
+
+    print("[LOG] Análise global finalizada com sucesso. Retornando payload.")
+    return jsonify({
+        "top_ag": top_3_ag,
+        "tabela_comparativa": tabela_final
+    })
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
