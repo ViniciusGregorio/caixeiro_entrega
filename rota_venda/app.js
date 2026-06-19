@@ -140,60 +140,52 @@ async function executarBasico(){
     }
 }
 
-function gerarProblemaAG(){
-    let n=parseInt(document.getElementById("agTam").value);
-    problemaAG=[];
-    
-    for(let i=0;i<n;i++){
-        problemaAG.push(Math.random());
+
+async function chamarAG() {
+    if (matrizProblema.length === 0) {
+        alert("Volte na aba 'Algoritmo Básico' e gere a Matriz do Problema primeiro!");
+        return;
     }
-    
-    document.getElementById("saidaAG").textContent= "Problema AG gerado tamanho "+n;
-}
 
-function fitness(ind){
-    let soma=0;
-    for(let g of ind){
-        soma+=g;
-    }
-    return soma;
-}
+    let payload = {
+        tamanho: matrizProblema.length,
+        matriz: matrizProblema,
+        tamanho_pop: parseInt(document.getElementById("ag_pop").value),
+        geracoes: parseInt(document.getElementById("ag_gens").value),
+        taxa_mutacao: parseFloat(document.getElementById("ag_mut").value),
+        taxa_cruzamento: parseFloat(document.getElementById("ag_cross").value),
+        metodo_selecao: document.getElementById("ag_selecao").value,
+        elitismo: document.getElementById("ag_elitismo").checked,
+        intervalo_geracao: parseFloat(document.getElementById("ag_ig").value),
+    };
 
-function executarAG(){
-    let popSize=parseInt(document.getElementById("pop").value);
-    let gens=parseInt(document.getElementById("gens").value);
-    let mut=parseFloat(document.getElementById("mut").value);
+    document.getElementById("saidaAG").textContent = "🧬 Cruzando gerações e evoluindo população...\nAguarde alguns instantes.";
 
-    let populacao=[];
-    for(let i=0;i<popSize;i++){
-        let ind=[];
-        for(let j=0;j<problemaAG.length;j++){
-            ind.push(Math.random());
+    try {
+        let response = await fetch('http://127.0.0.1:5000/executar_ag', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        let data = await response.json();
+
+        if(data.erro) {
+            document.getElementById("saidaAG").textContent = "❌ [ERRO]: " + data.erro;
+            return;
         }
-        populacao.push(ind);
-    }
 
-    let melhores=[];
-    for(let g=0;g<gens;g++){
-        populacao.sort((a,b)=>fitness(b)-fitness(a));
-        melhores.push(fitness(populacao[0]));
-        for(let i=popSize/2;i<popSize;i++){
-            let pai=populacao[Math.floor(Math.random()*popSize/2)];
-            let mae=populacao[Math.floor(Math.random()*popSize/2)];
-            let filho=[];
-            for(let j=0;j<pai.length;j++){
-                let gene=Math.random()<0.5 ? pai[j] : mae[j];
-                if(Math.random()<mut){
-                    gene=Math.random();
-                }
-                filho.push(gene);
-            }
-            populacao[i]=filho;
-        }
-    }
+        document.getElementById("saidaAG").textContent = 
+            "=== RESULTADO ALGORITMO GENÉTICO ===\n\n" +
+            "📍 Melhor Rota Evoluída: [" + data.melhor_rota.join(", ") + "]\n" +
+            "🛣️ Custo (Distância): " + data.melhor_custo;
 
-    mostrarGrafico(melhores);
-    document.getElementById("saidaAG").textContent= "Melhor fitness final: "+melhores[melhores.length-1];
+        // O Chart.js agora vai desenhar uma curva DESCENDENTE (minimizando o custo!)
+        mostrarGrafico(data.historico_custos);
+
+    } catch (e) {
+        document.getElementById("saidaAG").textContent = "Erro na conexão com a API do Genético.";
+    }
 }
 
 let chartInstance = null;
@@ -207,7 +199,7 @@ function mostrarGrafico(dados){
         data:{
             labels:dados.map((_,i)=>i),
             datasets:[{
-                label: "Evolução do Fitness",
+                label: "Evolução do Custo",
                 data:dados,
                 borderColor: "#38bdf8",
                 backgroundColor: "rgba(56, 189, 248, 0.1)",
@@ -218,7 +210,7 @@ function mostrarGrafico(dados){
 }
 
 
-// MODO DELIVERY (Leaflet + OSRM + Nominatim)
+// MODO DELIVERY - Leaflet + OSRM + Nominatim
 
 let mapaDelivery = null;
 let coordenadas = []; 
@@ -230,6 +222,7 @@ function toggleParametrosReal() {
     let metodo = document.getElementById("metodoReal").value;
     document.getElementById("paramsRealSET").style.display = (metodo === "tentativas") ? "block" : "none";
     document.getElementById("paramsRealTE").style.display = (metodo === "tempera") ? "block" : "none";
+    document.getElementById("paramsRealAG").style.display = (metodo === "genetico") ? "block" : "none";
 }
 
 function initMapa() {
@@ -239,6 +232,8 @@ function initMapa() {
     }
     
     mapaDelivery = L.map('mapaDelivery').setView([-22.5761, -44.9631], 14);
+    
+    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(mapaDelivery);
@@ -262,7 +257,6 @@ function initMapa() {
         }
     });
 }
-
 
 function limparTermoBusca(termo) {
     return termo.replace(/^(rua|r\.|avenida|av\.|travessa|tv\.|praça|praca|pça|alameda|al\.|rodovia|rod\.|viela)\s+/i, '').trim();
@@ -313,7 +307,6 @@ async function sugerirEnderecos() {
                         adicionarPontoNoMapa(lat, lng, item.name || div.textContent);
                         mapaDelivery.setView([lat, lng], 16);
                     };
-                    
                     lista.appendChild(div);
                 });
             } else {
@@ -329,9 +322,8 @@ async function buscarEndereco() {
     let query = document.getElementById('buscaEndereco').value;
     if(query.trim() === "") return;
 
-    let termoLimpo = limparTermoBusca(query); // Aplica a limpeza aqui também
+    let termoLimpo = limparTermoBusca(query); 
     let pesquisa = `${termoLimpo}, Cruzeiro, SP, Brasil`;
-    
     document.getElementById('buscaEndereco').value = "A pesquisar...";
 
     try {
@@ -359,19 +351,16 @@ function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
     let id_ponto = coordenadas.length;
     let cor = id_ponto === 0 ? '#ef4444' : '#3b82f6';
     let titulo = id_ponto === 0 ? "PONTO INICIAL" : `📦 ${id_ponto}`;
-    
     let nomeFinal = id_ponto === 0 ? `Restaurante (${nomeRuaBase})` : `${titulo} - ${nomeRuaBase}`;
     
-    // Guardamos o 'nomeRuaBase' para recriar o ponto com o texto certo se algum outro for apagado
     coordenadas.push({lat: lat, lng: lng, nome: nomeFinal, ruaBase: nomeRuaBase});
 
     let marcador = L.circleMarker([lat, lng], {
         color: 'black', fillColor: cor, fillOpacity: 1, radius: 9
     }).addTo(mapaDelivery);
-
     marcador.bindTooltip(nomeFinal, {permanent: true, direction: 'top', offset: [0, -10]}).openTooltip();
 
-    // NOVIDADE: Adiciona o Popup com o botão de excluir
+    
     let popupContent = `
         <div style="text-align: center; color: black; font-family: sans-serif;">
             <b style="font-size: 14px; display: block; margin-bottom: 10px;">${nomeFinal}</b>
@@ -382,6 +371,7 @@ function adicionarPontoNoMapa(lat, lng, nomeRuaBase) {
 
     marcadores.push(marcador);
 }
+
 
 window.removerPonto = function(index) {
     coordenadas.splice(index, 1);
@@ -398,7 +388,7 @@ window.removerPonto = function(index) {
     });
     
     let saidaDelivery = document.getElementById("saidaDelivery");
-    saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido! Se uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
+    saidaDelivery.textContent += `\n\n⚠️ [AVISO] Ponto removido!\nSe uma rota já estava desenhada, clique em "Calcular Rota Otimizada" para refazer a matemática.`;
     saidaDelivery.scrollTop = saidaDelivery.scrollHeight;
     
     mapaDelivery.closePopup();
@@ -409,7 +399,7 @@ function limparMapa() {
     marcadores.forEach(m => mapaDelivery.removeLayer(m));
     marcadores = [];
     if (linhaRota) mapaDelivery.removeLayer(linhaRota);
-    document.getElementById("saidaDelivery").textContent = "Mapa limpo!.";
+    document.getElementById("saidaDelivery").textContent = "Mapa limpo!";
 }
 
 document.addEventListener('click', function(event) {
@@ -419,6 +409,49 @@ document.addEventListener('click', function(event) {
         if(lista) lista.style.display = 'none';
     }
 });
+
+const infoAlgoritmos = {
+    'encosta': {
+        titulo: '⛰️ Subida de Encosta (Hill Climbing)',
+        texto: 'É um algoritmo de busca local "guloso". Ele analisa as rotas vizinhas à atual e sempre dá um passo na direção que diminui a distância imediatamente. A sua principal desvantagem é que pode ficar preso facilmente em "mínimos locais" (becos sem saída matemáticos), encerrando a busca sem descobrir que existia uma rota melhor do outro lado do mapa.'
+    },
+    'tentativas': {
+        titulo: '🔄 Subida com Tentativas (Restart)',
+        texto: 'Resolve a fraqueza (miopia) da Subida de Encosta clássica. Quando o algoritmo percebe que ficou preso num mínimo local, ele salva o melhor resultado e "pula de paraquedas" num ponto totalmente aleatório do mapa (random shuffle), reiniciando a busca. Ao fazer isso várias vezes (TMAX), as chances de encontrar o Mínimo Global (a rota perfeita) aumentam drasticamente.'
+    },
+    'tempera': {
+        titulo: '🔥 Têmpera Simulada (Simulated Annealing)',
+        texto: 'Inspirado no processo de resfriamento de metais na metalurgia. É a heurística clássica mais inteligente. Para fugir de Mínimos Locais, ele aceita escolher uma rota <b>pior</b> de propósito no início da busca. A probabilidade de ele aceitar um "erro" diminui à medida que o sistema "esfria", forçando o algoritmo a refinar o resultado no final. É altamente convergente.'
+    },
+    'genetico': {
+        titulo: '🧬 Algoritmo Genético',
+        texto: 'Inspirado na teoria de Darwin e seleção natural, ele evolui uma população inteira simultaneamente. As melhores rotas sobrevivem (Torneio/Roleta) e cruzam entre si utilizando o <b>Cruzamento OX</b> para gerar filhos saudáveis. Ocasionalmente, ocorrem mutações biológicas através de <b>Translocação em Bloco</b> para manter a diversidade do DNA e evitar a estagnação da espécie.'
+    }
+};
+
+function abrirModalInfo(chave) {
+    let dados = infoAlgoritmos[chave];
+    document.getElementById('modalTitle').innerHTML = dados.titulo;
+    document.getElementById('modalText').innerHTML = dados.texto;
+    
+    // Mostra o modal com animação
+    document.getElementById('modalInfo').style.display = 'flex';
+    setTimeout(() => {
+        document.getElementById('modalInfo').classList.add('show');
+    }, 10);
+}
+
+function fecharModalInfo(event, force=false) {
+    // Só fecha se clicou no X ou fora da caixa do modal
+    if (force || event.target.id === 'modalInfo') {
+        let modal = document.getElementById('modalInfo');
+        modal.classList.remove('show');
+        // Espera a animação de desaparecer antes de dar display: none
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+}
 
 async function calcularDeliveryMapa() {
     if (coordenadas.length < 2) {
@@ -432,11 +465,13 @@ async function calcularDeliveryMapa() {
         tmax: parseInt(document.getElementById("tmaxReal").value),
         ti: parseFloat(document.getElementById("tiReal").value),
         tf: parseFloat(document.getElementById("tfReal").value),
-        fr: parseFloat(document.getElementById("frReal").value)
+        fr: parseFloat(document.getElementById("frReal").value),
+        ag_pop: document.getElementById("agPopReal") ? parseInt(document.getElementById("agPopReal").value) : 50,
+        ag_gens: document.getElementById("agGensReal") ? parseInt(document.getElementById("agGensReal").value) : 100
     };
-
+    
     let saidaDelivery = document.getElementById("saidaDelivery");
-    saidaDelivery.textContent += "\n\n Calculando distâncias...";
+    saidaDelivery.textContent += "\n\n Calculando distâncias reais e otimizando ...";
 
     try {
         let response = await fetch('http://127.0.0.1:5000/calcular_delivery_mapa', {
@@ -444,7 +479,6 @@ async function calcularDeliveryMapa() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
-        
         let data = await response.json();
 
         if (data.erro) {
@@ -453,8 +487,25 @@ async function calcularDeliveryMapa() {
         }
 
         if (linhaRota) mapaDelivery.removeLayer(linhaRota);
-        let pontosDaRota = data.ordem_indices.map(idx => [coordenadas[idx].lat, coordenadas[idx].lng]);
-        linhaRota = L.polyline(pontosDaRota, {color: '#ef4444', weight: 4, dashArray: '10, 10'}).addTo(mapaDelivery);
+        saidaDelivery.textContent += "\n Buscando ruas no OSRM...";
+
+        
+        try {
+            let coordsOrdenadasStr = data.ordem_indices.map(idx => `${coordenadas[idx].lng},${coordenadas[idx].lat}`).join(';');
+            let routeResponse = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordsOrdenadasStr}?overview=full&geometries=geojson`);
+            let routeData = await routeResponse.json();
+
+            if (routeData.code === 'Ok') {
+                let pontosDaRua = routeData.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                linhaRota = L.polyline(pontosDaRua, {color: '#3b82f6', weight: 5, opacity: 0.8}).addTo(mapaDelivery);
+            } else {
+                throw new Error("OSRM não encontrou a rota das ruas.");
+            }
+        } catch(err) {
+          
+            let pontosDaRota = data.ordem_indices.map(idx => [coordenadas[idx].lat, coordenadas[idx].lng]);
+            linhaRota = L.polyline(pontosDaRota, {color: '#ef4444', weight: 4, dashArray: '10, 10'}).addTo(mapaDelivery);
+        }
 
         let preco = parseFloat(document.getElementById("precoGasolina").value);
         let consumo = parseFloat(document.getElementById("consumoMoto").value);
@@ -464,9 +515,9 @@ async function calcularDeliveryMapa() {
 
         let res = "\n==================================";
         res += "\nMÉTODO: " + (data.metodo_usado.toUpperCase());
-        res += "\n ROTA OTIMIZADA:\n" + txtRota;
+        res += "\n📍 ROTA OTIMIZADA:\n" + txtRota;
         res += "\n----------------------------------";
-        res += "\n TOTAL: " + data.distancia_km + " km   |   CUSTO: R$ " + custo.toFixed(2);
+        res += "\n🛣️ TOTAL: " + data.distancia_km + " km   |   ⛽ CUSTO: R$ " + custo.toFixed(2);
         res += "\n==================================";
 
         saidaDelivery.textContent += res;
@@ -475,4 +526,72 @@ async function calcularDeliveryMapa() {
     } catch (e) {
         saidaDelivery.textContent += "\nErro na conexão com a API ou Python.";
     }
+}
+
+
+// MÓDULO DO RELATÓRIO FINAL E PDF
+
+async function gerarRelatorioFinal() {
+    document.getElementById('btnRelatorio').disabled = true;
+    document.getElementById('loadingRelatorio').style.display = 'block';
+    document.getElementById('resultadoRelatorio').style.display = 'none';
+
+    try {
+        let response = await fetch('http://127.0.0.1:5000/gerar_relatorio', { method: 'POST' });
+        let data = await response.json();
+
+        if (data.erro) {
+            alert("Falha no processamento: " + data.erro);
+            document.getElementById('loadingRelatorio').style.display = 'none';
+            document.getElementById('btnRelatorio').disabled = false;
+            return;
+        }
+
+        // 1. Preenche Tabela do Top 10 AG
+        let htmlAG = "";
+        data.top_ag.forEach((ag, index) => {
+            htmlAG += `<tr>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">${index + 1}º</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.tp}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.ng}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.tc}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.tm}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${ag.ig}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; color: #0369a1;">${ag.ganho_medio.toFixed(2)}%</td>
+            </tr>`;
+        });
+        document.getElementById('tabelaAG').innerHTML = htmlAG;
+
+        // 2. Preenche Tabela Global
+        let htmlGlobal = "";
+        data.tabela_comparativa.forEach((item, index) => {
+            htmlGlobal += `<tr>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${index + 1}º</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${item.metodo}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1;">${item.parametros}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #0369a1;">${item.ganho_medio.toFixed(2)}%</td>
+            </tr>`;
+        });
+        document.getElementById('tabelaGlobal').innerHTML = htmlGlobal;
+
+        document.getElementById('loadingRelatorio').style.display = 'none';
+        document.getElementById('resultadoRelatorio').style.display = 'block';
+
+    } catch(e) {
+        alert("Ocorreu uma exceção do tipo Timeout. Devido à alta demanda computacional, a requisição excedeu o tempo de resposta padrão. Acompanhe a execução no terminal do servidor Python.");
+        document.getElementById('loadingRelatorio').style.display = 'none';
+    }
+    document.getElementById('btnRelatorio').disabled = false;
+}
+
+function exportarPDF() {
+    let elemento = document.getElementById('conteudoPDF');
+    let opt = {
+        margin:       15,
+        filename:     'Relatorio_Final_PathFinder.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(elemento).save();
 }
